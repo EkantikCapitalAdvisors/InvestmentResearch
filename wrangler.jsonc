@@ -11,4 +11,8 @@
       "database_id": "local-dev-db"
     }
   ]
+  // Secrets (set via wrangler secret put):
+  // ANTHROPIC_API_KEY — your Anthropic API key
+  // SLACK_BOT_TOKEN — Slack bot OAuth token (xoxb-...)
+  // SLACK_SIGNING_SECRET — Slack signing secret
 }

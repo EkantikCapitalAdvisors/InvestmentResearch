@@ -1,8 +1,43 @@
 import { Hono } from 'hono'
+import { processPortalResearch } from './slack/handlers'
 
-type Bindings = { DB: D1Database }
+type Bindings = { DB: D1Database; ANTHROPIC_API_KEY: string }
 
 export const apiRoutes = new Hono<{ Bindings: Bindings }>()
+
+// ============================================================
+// RESEARCH ENGINE — Run Research from Portal
+// ============================================================
+apiRoutes.post('/research/run', async (c) => {
+  const body = await c.req.json()
+  const { agentType, tickers, additionalContext } = body
+
+  if (!agentType) {
+    return c.json({ error: 'agentType is required' }, 400)
+  }
+
+  if (!c.env.ANTHROPIC_API_KEY) {
+    return c.json({ error: 'ANTHROPIC_API_KEY not configured' }, 500)
+  }
+
+  try {
+    const reportId = await processPortalResearch(
+      c.env.ANTHROPIC_API_KEY,
+      c.env.DB,
+      agentType,
+      tickers || [],
+      additionalContext,
+    )
+
+    // Fetch the created report
+    const report = await c.env.DB.prepare('SELECT * FROM research_reports WHERE id = ?').bind(reportId).first()
+
+    return c.json({ success: true, reportId, report })
+  } catch (error: any) {
+    console.error('Research execution failed:', error)
+    return c.json({ error: error.message || 'Research execution failed' }, 500)
+  }
+})
 
 // ============================================================
 // RESEARCH REPORTS

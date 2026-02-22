@@ -35,6 +35,47 @@ pageRoutes.get('/', (c) => {
               <option value="M">Medium</option>
               <option value="L">Low</option>
             </select>
+            <button onclick="document.getElementById('research-modal').classList.remove('hidden')" class="px-4 py-2 bg-ekantik-gold text-ekantik-bg rounded-lg text-sm font-semibold hover:bg-ekantik-gold-light transition-colors flex items-center gap-2">
+              <i class="fas fa-bolt"></i> Run Research
+            </button>
+          </div>
+        </div>
+
+        {/* Run Research Modal */}
+        <div id="research-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+          <div class="bg-ekantik-card border border-ekantik-border rounded-2xl p-6 w-full max-w-lg shadow-2xl">
+            <div class="flex items-center justify-between mb-4">
+              <h3 class="text-lg font-bold text-white"><i class="fas fa-bolt mr-2 text-ekantik-gold"></i>Run Research</h3>
+              <button onclick="document.getElementById('research-modal').classList.add('hidden')" class="text-gray-400 hover:text-white"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="space-y-4">
+              <div>
+                <label class="text-xs text-gray-400 uppercase tracking-wider block mb-1">Agent</label>
+                <select id="run-agent" class="w-full bg-ekantik-bg border border-ekantik-border rounded-lg px-3 py-2.5 text-sm text-gray-300 focus:outline-none focus:border-ekantik-gold/50">
+                  <option value="material_events">Material Events Intelligence</option>
+                  <option value="bias_mode">Bias Mode Detection</option>
+                  <option value="mag7_monitor">Magnificent 7 Scorecard</option>
+                  <option value="ai_scorer">AI Scoring Framework</option>
+                  <option value="hot_micro">Hot Micro Trend Pipeline</option>
+                  <option value="hot_macro">Hot Macro Events</option>
+                  <option value="doubler">Doubling Potential Analysis</option>
+                </select>
+              </div>
+              <div>
+                <label class="text-xs text-gray-400 uppercase tracking-wider block mb-1">Ticker(s) <span class="text-gray-500">(comma-separated, leave empty for Mag 7)</span></label>
+                <input id="run-tickers" type="text" placeholder="NVDA, MSFT" class="w-full bg-ekantik-bg border border-ekantik-border rounded-lg px-3 py-2.5 text-sm text-gray-300 focus:outline-none focus:border-ekantik-gold/50" />
+              </div>
+              <div>
+                <label class="text-xs text-gray-400 uppercase tracking-wider block mb-1">Additional Context <span class="text-gray-500">(optional)</span></label>
+                <textarea id="run-context" rows={2} placeholder="Any specific focus or question..." class="w-full bg-ekantik-bg border border-ekantik-border rounded-lg px-3 py-2.5 text-sm text-gray-300 focus:outline-none focus:border-ekantik-gold/50 resize-none"></textarea>
+              </div>
+              <div class="flex items-center justify-between pt-2">
+                <span class="text-xs text-gray-500" id="run-status"></span>
+                <button onclick="runResearch()" id="run-btn" class="px-5 py-2.5 bg-ekantik-gold text-ekantik-bg rounded-lg text-sm font-bold hover:bg-ekantik-gold-light transition-colors flex items-center gap-2">
+                  <i class="fas fa-play"></i> Execute Research
+                </button>
+              </div>
+            </div>
           </div>
         </div>
 
@@ -102,6 +143,37 @@ pageRoutes.get('/watchlist', (c) => {
           <div>
             <h1 class="text-2xl font-bold text-white">Watchlist <span class="text-ekantik-gold italic">Intelligence</span></h1>
             <p class="text-gray-400 text-sm mt-1">Active surveillance on all tracked tickers with AI scoring</p>
+          </div>
+          <button onclick="document.getElementById('research-modal-wl').classList.remove('hidden')" class="px-4 py-2 bg-ekantik-gold text-ekantik-bg rounded-lg text-sm font-semibold hover:bg-ekantik-gold-light transition-colors flex items-center gap-2">
+            <i class="fas fa-bolt"></i> Run Research
+          </button>
+        </div>
+        {/* Quick Research Modal for Watchlist */}
+        <div id="research-modal-wl" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+          <div class="bg-ekantik-card border border-ekantik-border rounded-2xl p-6 w-full max-w-lg shadow-2xl">
+            <div class="flex items-center justify-between mb-4">
+              <h3 class="text-lg font-bold text-white"><i class="fas fa-bolt mr-2 text-ekantik-gold"></i>Quick Research</h3>
+              <button onclick="document.getElementById('research-modal-wl').classList.add('hidden')" class="text-gray-400 hover:text-white"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="space-y-4">
+              <div>
+                <label class="text-xs text-gray-400 uppercase tracking-wider block mb-1">Agent</label>
+                <select id="wl-run-agent" class="w-full bg-ekantik-bg border border-ekantik-border rounded-lg px-3 py-2.5 text-sm text-gray-300">
+                  <option value="material_events">Material Events Intelligence</option>
+                  <option value="bias_mode">Bias Mode Detection</option>
+                  <option value="ai_scorer">AI Scoring Framework</option>
+                  <option value="doubler">Doubling Potential Analysis</option>
+                </select>
+              </div>
+              <div>
+                <label class="text-xs text-gray-400 uppercase tracking-wider block mb-1">Ticker</label>
+                <input id="wl-run-ticker" type="text" placeholder="NVDA" class="w-full bg-ekantik-bg border border-ekantik-border rounded-lg px-3 py-2.5 text-sm text-gray-300" />
+              </div>
+              <div class="flex items-center justify-between pt-2">
+                <span class="text-xs text-gray-500" id="wl-run-status"></span>
+                <button onclick="runWlResearch()" id="wl-run-btn" class="px-5 py-2.5 bg-ekantik-gold text-ekantik-bg rounded-lg text-sm font-bold hover:bg-ekantik-gold-light transition-colors"><i class="fas fa-play"></i> Execute</button>
+              </div>
+            </div>
           </div>
         </div>
         <div id="watchlist-table" class="bg-ekantik-card border border-ekantik-border rounded-xl overflow-hidden">
@@ -463,6 +535,50 @@ function getTimeAgo(dateStr) {
 function escapeHtml(text) {
   return text.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 }
+
+async function runResearch() {
+  const agent = document.getElementById('run-agent').value;
+  const tickersStr = document.getElementById('run-tickers').value;
+  const context = document.getElementById('run-context').value;
+  const btn = document.getElementById('run-btn');
+  const status = document.getElementById('run-status');
+
+  const tickers = tickersStr.toUpperCase().split(/[\\s,]+/).filter(t => /^[A-Z]{1,5}$/.test(t));
+
+  if (!agent) { alert('Please select an agent'); return; }
+  if (['material_events','bias_mode','ai_scorer','doubler'].includes(agent) && tickers.length === 0) {
+    alert('This agent requires at least one ticker symbol'); return;
+  }
+
+  btn.disabled = true;
+  btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Researching...';
+  status.textContent = 'Claude is analyzing with web search — typically 30-90 seconds...';
+
+  try {
+    const res = await fetch('/api/research/run', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ agentType: agent, tickers, additionalContext: context || undefined })
+    });
+    const data = await res.json();
+
+    if (data.error) {
+      status.textContent = 'Error: ' + data.error;
+      btn.disabled = false;
+      btn.innerHTML = '<i class="fas fa-play"></i> Execute Research';
+      return;
+    }
+
+    status.textContent = 'Research complete! Reloading feed...';
+    document.getElementById('research-modal').classList.add('hidden');
+    setTimeout(() => location.reload(), 500);
+
+  } catch(e) {
+    status.textContent = 'Error: ' + e.message;
+    btn.disabled = false;
+    btn.innerHTML = '<i class="fas fa-play"></i> Execute Research';
+  }
+}
 `
 
 const watchlistScript = `
@@ -515,6 +631,42 @@ const watchlistScript = `
     }).join('') + '</tbody></table>';
   } catch(e) { console.error('Watchlist load failed', e); }
 })();
+
+async function runWlResearch() {
+  const agent = document.getElementById('wl-run-agent').value;
+  const tickerStr = document.getElementById('wl-run-ticker').value;
+  const btn = document.getElementById('wl-run-btn');
+  const status = document.getElementById('wl-run-status');
+
+  const tickers = tickerStr.toUpperCase().split(/[\\s,]+/).filter(t => /^[A-Z]{1,5}$/.test(t));
+  if (tickers.length === 0) { alert('Please enter at least one ticker symbol'); return; }
+
+  btn.disabled = true;
+  btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Researching...';
+  status.textContent = 'Claude is analyzing with web search — typically 30-90 seconds...';
+
+  try {
+    const res = await fetch('/api/research/run', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ agentType: agent, tickers })
+    });
+    const data = await res.json();
+    if (data.error) {
+      status.textContent = 'Error: ' + data.error;
+      btn.disabled = false;
+      btn.innerHTML = '<i class="fas fa-play"></i> Execute';
+      return;
+    }
+    status.textContent = 'Research complete! Reloading...';
+    document.getElementById('research-modal-wl').classList.add('hidden');
+    setTimeout(() => location.reload(), 500);
+  } catch(e) {
+    status.textContent = 'Error: ' + e.message;
+    btn.disabled = false;
+    btn.innerHTML = '<i class="fas fa-play"></i> Execute';
+  }
+}
 `
 
 const tickerDetailScript = `
