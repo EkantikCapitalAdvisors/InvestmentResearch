@@ -1,5 +1,5 @@
 import { Hono } from 'hono'
-import { processPortalResearch } from './slack/handlers'
+import { processPortalResearch, saveExternalReport, detectAgentType, extractTickersFromContent } from './slack/handlers'
 import { postReportToSlack, postDailyDigestToSlack, listSlackChannels } from './slack/notify'
 import { refreshPrices, fetchQuote, fetchTickerProfile } from './market/yahoo'
 
@@ -126,6 +126,43 @@ apiRoutes.post('/research/run', async (c) => {
   } catch (error: any) {
     console.error('Research execution failed:', error)
     return c.json({ error: error.message || 'Research execution failed' }, 500)
+  }
+})
+
+// ============================================================
+// RESEARCH IMPORT — Save external reports (from Claude Desktop, etc.)
+// ============================================================
+apiRoutes.post('/research/import', async (c) => {
+  const body = await c.req.json()
+  const { agentType, tickers, content, source } = body
+
+  if (!content || content.trim().length < 10) {
+    return c.json({ error: 'content is required (min 10 chars)' }, 400)
+  }
+
+  const validAgents = [
+    'material_events', 'bias_mode', 'mag7_monitor', 'aomg_scanner',
+    'hot_micro', 'hot_macro', 'doubler', 'ai_scorer', 'social_sentiment',
+    'portfolio_heat', 'superlative_products',
+  ]
+  // Auto-detect agent type from content if not provided
+  const agent = validAgents.includes(agentType) ? agentType : detectAgentType(content)
+  // Auto-extract tickers from content if not provided
+  const resolvedTickers = (tickers && tickers.length > 0) ? tickers : extractTickersFromContent(content)
+
+  try {
+    const reportId = await saveExternalReport(
+      c.env.DB,
+      agent,
+      resolvedTickers,
+      content,
+      source || 'portal_import',
+    )
+    const report = await c.env.DB.prepare('SELECT * FROM research_reports WHERE id = ?').bind(reportId).first()
+    return c.json({ success: true, reportId, report })
+  } catch (error: any) {
+    console.error('Research import failed:', error)
+    return c.json({ error: error.message || 'Import failed' }, 500)
   }
 })
 

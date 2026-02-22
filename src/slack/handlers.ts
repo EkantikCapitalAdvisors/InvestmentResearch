@@ -99,11 +99,18 @@ slackRoutes.post('/commands', async (c) => {
     '/sentiment': { agent: 'social_sentiment', needsTicker: false, description: 'Social Sentiment Scanner' },
   }
 
+  // ─────────────────────────────────────────────────────────
+  // Handle /save command separately — it imports external reports
+  // ─────────────────────────────────────────────────────────
+  if (command === '/save') {
+    return handleSaveCommand(c.env.DB, text, channelId, userName, responseUrl)
+  }
+
   const cmdConfig = commandMap[command]
   if (!cmdConfig) {
     return c.json({
       response_type: 'ephemeral',
-      text: `Unknown command: ${command}. Available: ${Object.keys(commandMap).join(', ')}`
+      text: `Unknown command: ${command}. Available: ${Object.keys(commandMap).join(', ')}, /save`
     })
   }
 
@@ -239,7 +246,7 @@ slackRoutes.get('/health', (c) => {
   return c.json({
     status: 'ok',
     service: 'ekantik-slack',
-    commands: ['/material', '/bias', '/mag7', '/score', '/heat', '/watch', '/aomg', '/trend', '/macro', '/doubler', '/sentiment'],
+    commands: ['/material', '/bias', '/mag7', '/score', '/heat', '/watch', '/aomg', '/trend', '/macro', '/doubler', '/sentiment', '/save'],
     version: '2.0.0',
   })
 })
@@ -341,5 +348,316 @@ export async function processPortalResearch(
 ): Promise<string> {
   const result = await callClaude(apiKey, agentType, tickers, additionalContext)
   const reportId = await persistReport(db, agentType, tickers, 'portal', result)
+  return reportId
+}
+
+// ── /save Command — Import External Research to Portal ──────
+// Usage: /save NVDA material_events <paste your report here>
+// Or:    /save NVDA <paste report> (auto-detects agent type)
+// Or:    /save <paste report> (tries to extract tickers from content)
+// ─────────────────────────────────────────────────────────────
+
+const VALID_AGENTS = [
+  'material_events', 'bias_mode', 'mag7_monitor', 'aomg_scanner',
+  'hot_micro', 'hot_macro', 'doubler', 'ai_scorer', 'social_sentiment',
+  'portfolio_heat', 'superlative_products',
+]
+
+const AGENT_DETECTION_KEYWORDS: Record<string, string[]> = {
+  material_events: ['material event', 'catalyst', 'earnings impact', '8-k', '10-q', 'sec filing'],
+  bias_mode: ['bias mode', 'triple test', 'false positive', 'genuine deterioration', 'weighted composite'],
+  mag7_monitor: ['magnificent 7', 'mag 7', 'mag7', 'aapl.*msft.*googl', 'seven stocks'],
+  ai_scorer: ['ai scor', 'tam score', 'bias score', 'superlative score', 'disruption score', 'composite score'],
+  hot_micro: ['micro trend', 'hot micro', 'emerging trend'],
+  hot_macro: ['macro event', 'hot macro', 'fed funds', 'rate environment', 'inflation'],
+  doubler: ['doubling potential', 'doubler', '100% upside', 'double in', '2x thesis'],
+  aomg_scanner: ['aomg', 'area of maximum growth', 'tam.*sam.*som'],
+  social_sentiment: ['social sentiment', 'reddit', 'wsb', 'wallstreetbets', 'fintwit', 'social buzz'],
+}
+
+export function detectAgentType(text: string): string {
+  const lower = text.toLowerCase()
+  for (const [agent, keywords] of Object.entries(AGENT_DETECTION_KEYWORDS)) {
+    for (const kw of keywords) {
+      if (new RegExp(kw, 'i').test(lower)) return agent
+    }
+  }
+  return 'material_events' // default fallback
+}
+
+export function extractTickersFromContent(text: string): string[] {
+  // Match common ticker patterns: $NVDA, NVDA:, "NVDA", standalone uppercase 1-5 letters
+  // that appear near stock/investing context
+  const dollarTickers = text.match(/\$([A-Z]{1,5})\b/g)?.map(t => t.replace('$', '')) || []
+  const colonTickers = text.match(/\b([A-Z]{1,5}):/g)?.map(t => t.replace(':', '')) || []
+  
+  // Combine and deduplicate
+  const all = [...new Set([...dollarTickers, ...colonTickers])]
+  
+  // Filter out common false positives
+  const falsePositives = new Set(['I', 'A', 'AM', 'PM', 'DD', 'AI', 'CEO', 'CFO', 'CTO', 'IPO', 'ETF', 'SEC', 'FDA', 'US', 'EU', 'UK', 'GDP', 'CPI', 'PCE', 'Q1', 'Q2', 'Q3', 'Q4', 'H1', 'H2', 'YOY', 'QOQ', 'MOM', 'EPS', 'PE', 'PB', 'PS', 'EV', 'IV', 'OI', 'ATH', 'ATL', 'RSI', 'MACD', 'SMA', 'EMA', 'IMO', 'FWIW', 'TL', 'DR', 'YOLO', 'HODL', 'FYI', 'BTW', 'TLDR', 'LMAO', 'EST', 'PST', 'UTC', 'JSON', 'API', 'URL', 'PDF', 'CSV', 'SQL'])
+  return all.filter(t => !falsePositives.has(t))
+}
+
+function tryParseJSON(text: string): any | null {
+  // Try to find a JSON block in the text
+  const jsonMatch = text.match(/```json\s*([\s\S]*?)\s*```/)
+  if (jsonMatch) {
+    try { return JSON.parse(jsonMatch[1]) } catch {}
+    try { return JSON.parse(jsonMatch[1].replace(/,\s*}/g, '}').replace(/,\s*]/g, ']')) } catch {}
+  }
+  // Try to find a raw JSON object
+  const braceMatch = text.match(/\{[\s\S]*"key_takeaway"[\s\S]*\}/)
+  if (braceMatch) {
+    try { return JSON.parse(braceMatch[0]) } catch {}
+  }
+  return null
+}
+
+async function handleSaveCommand(
+  db: D1Database,
+  text: string,
+  channelId: string,
+  userName: string,
+  responseUrl: string,
+): Promise<Response> {
+  if (!text || text.trim().length < 10) {
+    return new Response(JSON.stringify({
+      response_type: 'ephemeral',
+      blocks: [
+        { type: 'section', text: { type: 'mrkdwn', text: ':floppy_disk: */save* — Import external research to the Ekantik Portal' } },
+        { type: 'divider' },
+        { type: 'section', text: { type: 'mrkdwn', text: 
+          '*Usage:*\n' +
+          '`/save NVDA material_events <your research report>`\n' +
+          '`/save NVDA <your research report>` _(auto-detects agent)_\n' +
+          '`/save <your research report>` _(auto-detects tickers & agent)_\n\n' +
+          '*Agent types:* material_events, bias_mode, mag7_monitor, ai_scorer, hot_micro, hot_macro, doubler, aomg_scanner, social_sentiment\n\n' +
+          '*Tip:* Paste your Claude Desktop report directly after the command. JSON blocks will be parsed automatically for structured data.'
+        } },
+      ]
+    }), { status: 200, headers: { 'Content-Type': 'application/json' } })
+  }
+
+  try {
+    // ── Parse the /save command text ──────────────────────────
+    // Strategy: first few words might be tickers and/or agent type,
+    // everything else is the report content.
+    const words = text.trim().split(/\s+/)
+    const parsedTickers: string[] = []
+    let agentType = ''
+    let contentStartIndex = 0
+
+    // Scan the first few words for tickers and agent type
+    for (let i = 0; i < Math.min(words.length, 5); i++) {
+      const word = words[i].toUpperCase().replace(/,/g, '')
+      const wordLower = words[i].toLowerCase().replace(/,/g, '')
+      
+      // Check if it's a known agent type
+      if (VALID_AGENTS.includes(wordLower)) {
+        agentType = wordLower
+        contentStartIndex = i + 1
+        continue
+      }
+      
+      // Check if it looks like a ticker (1-5 uppercase letters)
+      if (/^[A-Z]{1,5}$/.test(word) && !['THE', 'AND', 'FOR', 'WITH', 'THIS', 'THAT', 'FROM', 'HAVE', 'BEEN'].includes(word)) {
+        parsedTickers.push(word)
+        contentStartIndex = i + 1
+        continue
+      }
+      
+      // Once we hit a non-ticker non-agent word, rest is content
+      break
+    }
+
+    // The report content is everything after the parsed tokens
+    let reportContent = words.slice(contentStartIndex).join(' ').trim()
+    
+    // If we consumed everything as tickers/agent, the whole text IS the report
+    if (!reportContent || reportContent.length < 10) {
+      reportContent = text.trim()
+    }
+
+    // Auto-detect agent type from content if not explicitly provided
+    if (!agentType) {
+      agentType = detectAgentType(reportContent)
+    }
+
+    // Auto-extract tickers from content if none parsed from command prefix
+    if (parsedTickers.length === 0) {
+      const extracted = extractTickersFromContent(reportContent)
+      parsedTickers.push(...extracted.slice(0, 10))
+    }
+
+    // Try to extract structured JSON from the report
+    const structured = tryParseJSON(reportContent) || {
+      key_takeaway: reportContent.substring(0, 200).replace(/[#*`]/g, '').trim(),
+      impact_score: 'M',
+      conviction_level: 'MEDIUM',
+      source: 'external_import',
+    }
+
+    // Ensure impact/conviction exist
+    if (!structured.impact_score) structured.impact_score = 'M'
+    if (!structured.conviction_level) structured.conviction_level = 'MEDIUM'
+
+    // ── Save to D1 ───────────────────────────────────────────
+    const reportId = `rpt-import-${Date.now()}-${Math.random().toString(36).substring(2, 8)}`
+
+    await db.prepare(`
+      INSERT INTO research_reports (
+        id, agent_type, ticker_symbols, trigger_source, model_used, api_mode,
+        raw_markdown, structured_json, impact_score, ai_composite_score,
+        conviction_level, token_usage, cost_estimate, processing_time_ms,
+        status, slack_channel_id
+      ) VALUES (?, ?, ?, 'manual', ?, 'import', ?, ?, ?, ?, ?, '{}', 0, 0, 'completed', ?)
+    `).bind(
+      reportId,
+      agentType,
+      JSON.stringify(parsedTickers),
+      structured.model || 'external',
+      reportContent,
+      JSON.stringify(structured),
+      structured.impact_score,
+      structured.ai_composite_score || structured.ai_scores?.composite || null,
+      structured.conviction_level,
+      channelId,
+    ).run()
+
+    console.log(`[Save] Report imported: ${reportId} | agent=${agentType} | tickers=${parsedTickers.join(',')} | by=${userName}`)
+
+    // ── Post confirmation to Slack ───────────────────────────
+    const tickerStr = parsedTickers.length > 0 ? parsedTickers.map(t => `\`${t}\``).join(' ') : '_none detected_'
+    const takeaway = (structured.key_takeaway || reportContent.substring(0, 150)).substring(0, 200)
+    const contentPreview = reportContent.length > 300
+      ? reportContent.substring(0, 300).replace(/[`]/g, '') + '...'
+      : reportContent.replace(/[`]/g, '')
+
+    const AGENT_LABELS: Record<string, string> = {
+      material_events: 'Material Events', bias_mode: 'Bias Mode', mag7_monitor: 'Mag 7 Monitor',
+      ai_scorer: 'AI Scorer', hot_micro: 'Hot Micro', hot_macro: 'Hot Macro',
+      doubler: 'Doubler', aomg_scanner: 'AOMG Scanner', social_sentiment: 'Social Sentiment',
+      portfolio_heat: 'Portfolio Heat', superlative_products: 'Superlative Products',
+    }
+
+    const confirmBlocks = {
+      response_type: 'in_channel' as const,
+      blocks: [
+        {
+          type: 'header',
+          text: { type: 'plain_text', text: ':floppy_disk: Research Report Saved to Portal', emoji: true }
+        },
+        {
+          type: 'section',
+          text: {
+            type: 'mrkdwn',
+            text: [
+              `*Agent:* ${AGENT_LABELS[agentType] || agentType}`,
+              `*Tickers:* ${tickerStr}`,
+              `*Impact:* ${structured.impact_score || 'M'} · *Conviction:* ${structured.conviction_level || 'MEDIUM'}`,
+              structured.ai_composite_score ? `*AI Score:* ${structured.ai_composite_score}/10` : null,
+              `*Report ID:* \`${reportId}\``,
+              `*Saved by:* @${userName}`,
+            ].filter(Boolean).join('\n')
+          }
+        },
+        { type: 'divider' },
+        {
+          type: 'section',
+          text: {
+            type: 'mrkdwn',
+            text: `:bulb: *Takeaway:*\n>${takeaway}`
+          }
+        },
+        {
+          type: 'context',
+          elements: [
+            { type: 'mrkdwn', text: `_Imported via /save · Content length: ${reportContent.length} chars · <https://research.ekantikcapital.com|View in Portal>_` }
+          ]
+        },
+      ]
+    }
+
+    // Post via response_url
+    if (responseUrl) {
+      await fetch(responseUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(confirmBlocks),
+      })
+    }
+
+    return new Response(JSON.stringify({ ok: true, reportId }), {
+      status: 200,
+      headers: { 'Content-Type': 'application/json' }
+    })
+
+  } catch (error: any) {
+    console.error('[Save] Error:', error.message)
+    
+    const errorResponse = {
+      response_type: 'ephemeral',
+      text: `:x: Failed to save report: ${error.message}`
+    }
+
+    if (responseUrl) {
+      try {
+        await fetch(responseUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(errorResponse),
+        })
+      } catch (e) {}
+    }
+
+    return new Response(JSON.stringify(errorResponse), {
+      status: 200, // Return 200 to Slack even on error
+      headers: { 'Content-Type': 'application/json' }
+    })
+  }
+}
+
+// ── Export saveExternalReport for api.tsx to use ──────────────
+export async function saveExternalReport(
+  db: D1Database,
+  agentType: string,
+  tickers: string[],
+  content: string,
+  source: string,
+  channelId?: string,
+): Promise<string> {
+  const structured = tryParseJSON(content) || {
+    key_takeaway: content.substring(0, 200).replace(/[#*`]/g, '').trim(),
+    impact_score: 'M',
+    conviction_level: 'MEDIUM',
+    source: source,
+  }
+
+  if (!structured.impact_score) structured.impact_score = 'M'
+  if (!structured.conviction_level) structured.conviction_level = 'MEDIUM'
+
+  const reportId = `rpt-import-${Date.now()}-${Math.random().toString(36).substring(2, 8)}`
+
+  await db.prepare(`
+    INSERT INTO research_reports (
+      id, agent_type, ticker_symbols, trigger_source, model_used, api_mode,
+      raw_markdown, structured_json, impact_score, ai_composite_score,
+      conviction_level, token_usage, cost_estimate, processing_time_ms,
+      status, slack_channel_id
+    ) VALUES (?, ?, ?, 'manual', ?, 'import', ?, ?, ?, ?, ?, '{}', 0, 0, 'completed', ?)
+  `).bind(
+    reportId,
+    agentType,
+    JSON.stringify(tickers),
+    structured.model || 'external',
+    content,
+    JSON.stringify(structured),
+    structured.impact_score,
+    structured.ai_composite_score || null,
+    structured.conviction_level,
+    channelId || null,
+  ).run()
+
   return reportId
 }

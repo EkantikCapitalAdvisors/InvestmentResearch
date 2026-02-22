@@ -39,6 +39,9 @@ pageRoutes.get('/', (c) => {
             <button onclick="document.getElementById('research-modal').classList.remove('hidden')" class="px-4 py-2 bg-ekantik-gold text-ekantik-bg rounded-lg text-sm font-semibold hover:bg-ekantik-gold-light transition-colors flex items-center gap-2">
               <i class="fas fa-bolt"></i> Run Research
             </button>
+            <button onclick="document.getElementById('import-modal').classList.remove('hidden')" class="px-4 py-2 bg-ekantik-surface border border-ekantik-border text-gray-300 rounded-lg text-sm font-semibold hover:border-ekantik-gold/50 hover:text-ekantik-gold transition-colors flex items-center gap-2">
+              <i class="fas fa-file-import"></i> Import
+            </button>
           </div>
         </div>
 
@@ -75,6 +78,50 @@ pageRoutes.get('/', (c) => {
                 <span class="text-xs text-gray-500" id="run-status"></span>
                 <button onclick="runResearch()" id="run-btn" class="px-5 py-2.5 bg-ekantik-gold text-ekantik-bg rounded-lg text-sm font-bold hover:bg-ekantik-gold-light transition-colors flex items-center gap-2">
                   <i class="fas fa-play"></i> Execute Research
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Import Report Modal */}
+        <div id="import-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+          <div class="bg-ekantik-card border border-ekantik-border rounded-2xl p-6 w-full max-w-2xl shadow-2xl">
+            <div class="flex items-center justify-between mb-4">
+              <h3 class="text-lg font-bold text-white"><i class="fas fa-file-import mr-2 text-ekantik-gold"></i>Import External Research</h3>
+              <button onclick="document.getElementById('import-modal').classList.add('hidden')" class="text-gray-400 hover:text-white"><i class="fas fa-times"></i></button>
+            </div>
+            <p class="text-xs text-gray-500 mb-4">Paste a research report from Claude Desktop or any other source. Tickers and agent type will be auto-detected if not specified.</p>
+            <div class="space-y-4">
+              <div class="grid grid-cols-2 gap-4">
+                <div>
+                  <label class="text-xs text-gray-400 uppercase tracking-wider block mb-1">Agent Type <span class="text-gray-500">(auto-detected if empty)</span></label>
+                  <select id="import-agent" class="w-full bg-ekantik-bg border border-ekantik-border rounded-lg px-3 py-2.5 text-sm text-gray-300 focus:outline-none focus:border-ekantik-gold/50">
+                    <option value="">Auto-detect</option>
+                    <option value="material_events">Material Events Intelligence</option>
+                    <option value="bias_mode">Bias Mode Detection</option>
+                    <option value="mag7_monitor">Magnificent 7 Scorecard</option>
+                    <option value="ai_scorer">AI Scoring Framework</option>
+                    <option value="hot_micro">Hot Micro Trend Pipeline</option>
+                    <option value="hot_macro">Hot Macro Events</option>
+                    <option value="doubler">Doubling Potential Analysis</option>
+                    <option value="aomg_scanner">AOMG Growth Scanner</option>
+                    <option value="social_sentiment">Social Sentiment Scanner</option>
+                  </select>
+                </div>
+                <div>
+                  <label class="text-xs text-gray-400 uppercase tracking-wider block mb-1">Ticker(s) <span class="text-gray-500">(auto-detected if empty)</span></label>
+                  <input id="import-tickers" type="text" placeholder="NVDA, MSFT" class="w-full bg-ekantik-bg border border-ekantik-border rounded-lg px-3 py-2.5 text-sm text-gray-300 focus:outline-none focus:border-ekantik-gold/50" />
+                </div>
+              </div>
+              <div>
+                <label class="text-xs text-gray-400 uppercase tracking-wider block mb-1">Report Content <span class="text-red-400">*</span></label>
+                <textarea id="import-content" rows={10} placeholder="Paste your Claude Desktop research report here...&#10;&#10;Supports markdown and JSON blocks. If the report contains a ```json block, it will be parsed for structured data automatically." class="w-full bg-ekantik-bg border border-ekantik-border rounded-lg px-3 py-2.5 text-sm text-gray-300 focus:outline-none focus:border-ekantik-gold/50 resize-y font-mono"></textarea>
+              </div>
+              <div class="flex items-center justify-between pt-2">
+                <span class="text-xs text-gray-500" id="import-status"></span>
+                <button onclick="importReport()" id="import-btn" class="px-5 py-2.5 bg-ekantik-gold text-ekantik-bg rounded-lg text-sm font-bold hover:bg-ekantik-gold-light transition-colors flex items-center gap-2">
+                  <i class="fas fa-file-import"></i> Save to Portal
                 </button>
               </div>
             </div>
@@ -731,6 +778,55 @@ async function runResearch() {
     status.textContent = 'Error: ' + e.message;
     btn.disabled = false;
     btn.innerHTML = '<i class="fas fa-play"></i> Execute Research';
+  }
+}
+
+async function importReport() {
+  const agentType = document.getElementById('import-agent').value;
+  const tickersStr = document.getElementById('import-tickers').value;
+  const content = document.getElementById('import-content').value;
+  const btn = document.getElementById('import-btn');
+  const status = document.getElementById('import-status');
+
+  if (!content || content.trim().length < 10) {
+    alert('Please paste a research report (minimum 10 characters)');
+    return;
+  }
+
+  const tickers = tickersStr ? tickersStr.toUpperCase().split(/[\\s,]+/).filter(t => /^[A-Z]{1,5}$/.test(t)) : [];
+
+  btn.disabled = true;
+  btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...';
+  status.textContent = 'Importing report to portal...';
+
+  try {
+    const res = await fetch('/api/research/import', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        agentType: agentType || undefined,
+        tickers: tickers.length > 0 ? tickers : undefined,
+        content: content,
+        source: 'portal_import'
+      })
+    });
+    const data = await res.json();
+
+    if (data.error) {
+      status.textContent = 'Error: ' + data.error;
+      btn.disabled = false;
+      btn.innerHTML = '<i class="fas fa-file-import"></i> Save to Portal';
+      return;
+    }
+
+    status.textContent = 'Report saved! ID: ' + data.reportId + '. Reloading...';
+    document.getElementById('import-modal').classList.add('hidden');
+    setTimeout(() => location.reload(), 500);
+
+  } catch(e) {
+    status.textContent = 'Error: ' + e.message;
+    btn.disabled = false;
+    btn.innerHTML = '<i class="fas fa-file-import"></i> Save to Portal';
   }
 }
 
