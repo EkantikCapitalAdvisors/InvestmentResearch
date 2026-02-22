@@ -109,16 +109,15 @@ slackRoutes.post('/commands', async (c) => {
   }
 
   // Immediate acknowledgment — Slack requires response within 3 seconds
-  // Use waitUntil to process in background
-  const ctx = c.executionCtx
+  // Then process in background via executionCtx.waitUntil()
 
-  // Handle read-only commands (no Claude needed)
+  // Handle read-only commands (no Claude needed — fast, <1s)
   if (['portfolio_heat_view', 'watchlist_view'].includes(cmdConfig.agent)) {
-    ctx.waitUntil(handleReadOnlyCommand(c.env.DB, c.env.SLACK_BOT_TOKEN || '', cmdConfig.agent, responseUrl))
+    c.executionCtx.waitUntil(handleReadOnlyCommand(c.env.DB, c.env.SLACK_BOT_TOKEN || '', cmdConfig.agent, responseUrl))
     return c.json(buildAckResponse(cmdConfig.description, tickers, true))
   }
 
-  // Handle research commands (Claude + web search)
+  // Handle research commands (Claude + web search — 30-90s)
   if (!c.env.ANTHROPIC_API_KEY) {
     return c.json({
       response_type: 'ephemeral',
@@ -126,7 +125,8 @@ slackRoutes.post('/commands', async (c) => {
     })
   }
 
-  ctx.waitUntil(
+  // Use waitUntil to process Claude API call in the background
+  c.executionCtx.waitUntil(
     handleResearchCommand(
       c.env.ANTHROPIC_API_KEY,
       c.env.DB,
@@ -194,17 +194,23 @@ async function handleResearchCommand(
   userName: string
 ) {
   try {
+    console.log(`[Slack] Starting ${agentType} research for ${tickers.join(',')}...`)
+    console.log(`[Slack] API key present: ${!!apiKey}, length: ${apiKey?.length}`)
+    console.log(`[Slack] Response URL: ${responseUrl}`)
+
     // Call Claude with web search
     const result = await callClaude(apiKey, agentType, tickers, rawText !== tickers.join(' ') ? rawText : undefined)
+    console.log(`[Slack] Claude returned in ${result.processingTimeMs}ms, tokens: ${result.tokenUsage.input}+${result.tokenUsage.output}`)
 
     // Persist to D1
     const reportId = await persistReport(db, agentType, tickers, 'slack', result, channelId)
+    console.log(`[Slack] Report persisted: ${reportId}`)
 
     // Build Block Kit response
     const blocks = buildBlockKitResponse(agentType, tickers, result.structured, result.rawMarkdown, reportId, result.costEstimate, result.processingTimeMs)
 
     // Send response to Slack via response_url
-    await fetch(responseUrl, {
+    const slackResp = await fetch(responseUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -213,14 +219,23 @@ async function handleResearchCommand(
         ...blocks
       })
     })
+    console.log(`[Slack] Response posted to Slack: ${slackResp.status} ${slackResp.statusText}`)
+    if (!slackResp.ok) {
+      const errText = await slackResp.text()
+      console.error(`[Slack] Slack response_url error: ${errText}`)
+    }
   } catch (error: any) {
-    console.error('Research command failed:', error)
+    console.error('[Slack] Research command failed:', error.message, error.stack)
     // Send error to Slack
-    await fetch(responseUrl, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(buildErrorResponse(agentType, tickers, error.message))
-    })
+    try {
+      await fetch(responseUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(buildErrorResponse(agentType, tickers, error.message))
+      })
+    } catch (postError: any) {
+      console.error('[Slack] Failed to post error to Slack:', postError.message)
+    }
   }
 }
 

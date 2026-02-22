@@ -7,6 +7,62 @@ type Bindings = { DB: D1Database; ANTHROPIC_API_KEY: string }
 export const apiRoutes = new Hono<{ Bindings: Bindings }>()
 
 // ============================================================
+// RESEARCH ENGINE — Async trigger for Slack (fire & forget from Slack handler)
+// ============================================================
+apiRoutes.post('/research/slack-run', async (c) => {
+  const body = await c.req.json()
+  const { agentType, tickers, responseUrl, channelId, userName, rawText } = body
+
+  if (!c.env.ANTHROPIC_API_KEY) {
+    // Post error to Slack response_url
+    if (responseUrl) {
+      await fetch(responseUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ response_type: 'ephemeral', text: ':x: ANTHROPIC_API_KEY not configured.' })
+      })
+    }
+    return c.json({ error: 'ANTHROPIC_API_KEY not configured' }, 500)
+  }
+
+  try {
+    const { callClaude, persistReport } = await import('./research/engine')
+    const { buildBlockKitResponse, buildErrorResponse } = await import('./slack/blocks')
+
+    console.log(`[SlackRun] Starting ${agentType} for ${tickers.join(',')}`)
+    const result = await callClaude(c.env.ANTHROPIC_API_KEY, agentType, tickers, rawText)
+    console.log(`[SlackRun] Claude returned in ${result.processingTimeMs}ms`)
+
+    const reportId = await persistReport(c.env.DB, agentType, tickers, 'slack', result, channelId)
+    console.log(`[SlackRun] Report persisted: ${reportId}`)
+
+    const blocks = buildBlockKitResponse(agentType, tickers, result.structured, result.rawMarkdown, reportId, result.costEstimate, result.processingTimeMs)
+
+    if (responseUrl) {
+      const slackResp = await fetch(responseUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ response_type: 'in_channel', replace_original: true, ...blocks })
+      })
+      console.log(`[SlackRun] Posted to Slack: ${slackResp.status}`)
+    }
+
+    return c.json({ success: true, reportId })
+  } catch (error: any) {
+    console.error(`[SlackRun] Error: ${error.message}`)
+    if (responseUrl) {
+      const { buildErrorResponse } = await import('./slack/blocks')
+      await fetch(responseUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(buildErrorResponse(agentType, tickers, error.message))
+      })
+    }
+    return c.json({ error: error.message }, 500)
+  }
+})
+
+// ============================================================
 // RESEARCH ENGINE — Run Research from Portal
 // ============================================================
 apiRoutes.post('/research/run', async (c) => {
@@ -366,6 +422,53 @@ apiRoutes.get('/market/quote/:symbol', async (c) => {
   const quote = await fetchQuote(symbol)
   if (!quote) return c.json({ error: 'Quote not found' }, 404)
   return c.json(quote)
+})
+
+// ============================================================
+// DIAGNOSTICS — Test Claude API connectivity & executionCtx
+// ============================================================
+apiRoutes.get('/diag/claude', async (c) => {
+  if (!c.env.ANTHROPIC_API_KEY) {
+    return c.json({ error: 'ANTHROPIC_API_KEY not set', keyPresent: false })
+  }
+  try {
+    const start = Date.now()
+    const resp = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': c.env.ANTHROPIC_API_KEY,
+        'anthropic-version': '2023-06-01',
+      },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 50,
+        messages: [{ role: 'user', content: 'Reply with exactly: OK' }]
+      })
+    })
+    const data: any = await resp.json()
+    const ms = Date.now() - start
+    
+    // Check executionCtx availability
+    let ctxInfo = 'unknown'
+    try {
+      const ctx = c.executionCtx
+      ctxInfo = ctx ? (typeof ctx.waitUntil === 'function' ? 'has_waitUntil' : 'no_waitUntil') : 'null'
+    } catch (e: any) { ctxInfo = `error: ${e.message}` }
+    
+    return c.json({
+      keyPresent: true,
+      keyLength: c.env.ANTHROPIC_API_KEY.length,
+      apiStatus: resp.status,
+      model: data.model,
+      reply: data.content?.[0]?.text?.substring(0, 50),
+      latencyMs: ms,
+      ok: resp.ok,
+      executionCtx: ctxInfo,
+    })
+  } catch (e: any) {
+    return c.json({ keyPresent: true, error: e.message })
+  }
 })
 
 // ============================================================
