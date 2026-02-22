@@ -58,6 +58,58 @@ export async function fetchQuotes(symbols: string[]): Promise<YahooQuote[]> {
     .filter((q): q is YahooQuote => q !== null)
 }
 
+// ── Rich ticker profile for new additions ───────────────────
+export interface YahooProfile {
+  symbol: string
+  shortName: string
+  longName: string
+  sector: string
+  industry: string
+  marketCap: number
+  price: number
+  previousClose: number
+  changePercent: number
+  forwardPE: number | null
+  currency: string
+}
+
+export async function fetchTickerProfile(symbol: string): Promise<YahooProfile | null> {
+  try {
+    // Use v8 chart for price data
+    const chartUrl = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?interval=1d&range=5d`
+    const chartRes = await fetch(chartUrl, {
+      headers: { 'User-Agent': 'Mozilla/5.0 (compatible; EkantikResearch/1.0)' }
+    })
+    if (!chartRes.ok) return null
+
+    const chartData: any = await chartRes.json()
+    const result = chartData?.chart?.result?.[0]
+    if (!result) return null
+
+    const meta = result.meta
+    const price = meta.regularMarketPrice
+    const previousClose = meta.chartPreviousClose || meta.previousClose
+    const changePercent = previousClose ? ((price - previousClose) / previousClose) * 100 : 0
+
+    return {
+      symbol: meta.symbol || symbol.toUpperCase(),
+      shortName: meta.shortName || meta.symbol || symbol.toUpperCase(),
+      longName: meta.longName || meta.shortName || meta.symbol || symbol.toUpperCase(),
+      sector: meta.sector || '',
+      industry: meta.industry || '',
+      marketCap: meta.marketCap || 0,
+      price,
+      previousClose,
+      changePercent: Math.round(changePercent * 100) / 100,
+      forwardPE: meta.forwardPE || null,
+      currency: meta.currency || 'USD',
+    }
+  } catch (e) {
+    console.error(`Yahoo profile fetch failed for ${symbol}:`, e)
+    return null
+  }
+}
+
 // ── Update D1 tickers with live prices ─────────────────────
 export async function refreshPrices(db: D1Database): Promise<{
   updated: number

@@ -1,6 +1,6 @@
 import { Hono } from 'hono'
 import { processPortalResearch } from './slack/handlers'
-import { refreshPrices, fetchQuote } from './market/yahoo'
+import { refreshPrices, fetchQuote, fetchTickerProfile } from './market/yahoo'
 
 type Bindings = { DB: D1Database; ANTHROPIC_API_KEY: string }
 
@@ -85,6 +85,92 @@ apiRoutes.get('/watchlist', async (c) => {
     FROM tickers t WHERE t.is_watchlist = 1 ORDER BY t.is_mag7 DESC, t.symbol ASC
   `).all()
   return c.json({ tickers: results })
+})
+
+// ── Watchlist Management ─────────────────────────────────────
+
+// Add ticker to watchlist (creates if not exists, fetches Yahoo data)
+apiRoutes.post('/watchlist/add', async (c) => {
+  const { symbol } = await c.req.json()
+  if (!symbol) return c.json({ error: 'symbol is required' }, 400)
+  const sym = symbol.toUpperCase().trim()
+  if (!/^[A-Z]{1,5}$/.test(sym)) return c.json({ error: 'Invalid ticker symbol' }, 400)
+
+  // Check if ticker already exists
+  const existing = await c.env.DB.prepare('SELECT * FROM tickers WHERE symbol = ?').bind(sym).first() as any
+
+  if (existing) {
+    if (existing.is_watchlist) {
+      return c.json({ error: `${sym} is already on the watchlist`, ticker: existing }, 409)
+    }
+    // Just flip the watchlist flag
+    await c.env.DB.prepare(
+      'UPDATE tickers SET is_watchlist = 1, added_to_watchlist_at = datetime(\'now\'), updated_at = datetime(\'now\') WHERE id = ?'
+    ).bind(existing.id).run()
+    const updated = await c.env.DB.prepare('SELECT * FROM tickers WHERE id = ?').bind(existing.id).first()
+    return c.json({ success: true, ticker: updated, action: 'enabled' })
+  }
+
+  // New ticker — fetch from Yahoo to validate & get metadata
+  const profile = await fetchTickerProfile(sym)
+  if (!profile) {
+    return c.json({ error: `Could not find ${sym} on Yahoo Finance. Check the symbol and try again.` }, 404)
+  }
+
+  const id = 'tk-' + sym.toLowerCase()
+  await c.env.DB.prepare(`
+    INSERT INTO tickers (id, symbol, name, sector, industry, is_mag7, is_watchlist, last_price, price_change_pct, market_cap, forward_pe, added_to_watchlist_at)
+    VALUES (?, ?, ?, ?, ?, 0, 1, ?, ?, ?, ?, datetime('now'))
+  `).bind(
+    id, profile.symbol, profile.longName || profile.shortName,
+    profile.sector, profile.industry,
+    profile.price, profile.changePercent,
+    profile.marketCap, profile.forwardPE
+  ).run()
+
+  const ticker = await c.env.DB.prepare('SELECT * FROM tickers WHERE id = ?').bind(id).first()
+  return c.json({ success: true, ticker, action: 'created' })
+})
+
+// Remove ticker from watchlist (soft — just flips the flag)
+apiRoutes.post('/watchlist/remove', async (c) => {
+  const { symbol } = await c.req.json()
+  if (!symbol) return c.json({ error: 'symbol is required' }, 400)
+  const sym = symbol.toUpperCase().trim()
+
+  const existing = await c.env.DB.prepare('SELECT * FROM tickers WHERE symbol = ?').bind(sym).first() as any
+  if (!existing) return c.json({ error: `${sym} not found` }, 404)
+  if (!existing.is_watchlist) return c.json({ error: `${sym} is not on the watchlist` }, 409)
+
+  await c.env.DB.prepare(
+    'UPDATE tickers SET is_watchlist = 0, updated_at = datetime(\'now\') WHERE id = ?'
+  ).bind(existing.id).run()
+  return c.json({ success: true, symbol: sym })
+})
+
+// Search Yahoo for a ticker (validate before adding)
+apiRoutes.get('/watchlist/lookup/:symbol', async (c) => {
+  const sym = c.req.param('symbol').toUpperCase().trim()
+  if (!/^[A-Z]{1,5}$/.test(sym)) return c.json({ error: 'Invalid symbol' }, 400)
+
+  // Check if already in DB
+  const existing = await c.env.DB.prepare('SELECT * FROM tickers WHERE symbol = ?').bind(sym).first() as any
+
+  const profile = await fetchTickerProfile(sym)
+  if (!profile) return c.json({ error: `${sym} not found on Yahoo Finance` }, 404)
+
+  return c.json({
+    symbol: profile.symbol,
+    name: profile.longName || profile.shortName,
+    sector: profile.sector,
+    industry: profile.industry,
+    price: profile.price,
+    changePercent: profile.changePercent,
+    marketCap: profile.marketCap,
+    forwardPE: profile.forwardPE,
+    alreadyInDb: !!existing,
+    isWatchlist: existing?.is_watchlist === 1,
+  })
 })
 
 apiRoutes.get('/tickers', async (c) => {

@@ -144,10 +144,41 @@ pageRoutes.get('/watchlist', (c) => {
             <h1 class="text-2xl font-bold text-white">Watchlist <span class="text-ekantik-gold italic">Intelligence</span></h1>
             <p class="text-gray-400 text-sm mt-1">Active surveillance on all tracked tickers with AI scoring</p>
           </div>
-          <button onclick="document.getElementById('research-modal-wl').classList.remove('hidden')" class="px-4 py-2 bg-ekantik-gold text-ekantik-bg rounded-lg text-sm font-semibold hover:bg-ekantik-gold-light transition-colors flex items-center gap-2">
-            <i class="fas fa-bolt"></i> Run Research
-          </button>
+          <div class="flex items-center gap-3">
+            <button onclick="document.getElementById('add-ticker-modal').classList.remove('hidden')" class="px-4 py-2 bg-ekantik-accent/20 text-ekantik-accent border border-ekantik-accent/30 rounded-lg text-sm font-semibold hover:bg-ekantik-accent/30 transition-colors flex items-center gap-2">
+              <i class="fas fa-plus"></i> Add Ticker
+            </button>
+            <button onclick="document.getElementById('research-modal-wl').classList.remove('hidden')" class="px-4 py-2 bg-ekantik-gold text-ekantik-bg rounded-lg text-sm font-semibold hover:bg-ekantik-gold-light transition-colors flex items-center gap-2">
+              <i class="fas fa-bolt"></i> Run Research
+            </button>
+          </div>
         </div>
+
+        {/* Add Ticker Modal */}
+        <div id="add-ticker-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+          <div class="bg-ekantik-card border border-ekantik-border rounded-2xl p-6 w-full max-w-md shadow-2xl">
+            <div class="flex items-center justify-between mb-4">
+              <h3 class="text-lg font-bold text-white"><i class="fas fa-plus-circle mr-2 text-ekantik-accent"></i>Add to Watchlist</h3>
+              <button onclick="closeAddModal()" class="text-gray-400 hover:text-white"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="space-y-4">
+              <div>
+                <label class="text-xs text-gray-400 uppercase tracking-wider block mb-1">Ticker Symbol</label>
+                <div class="flex gap-2">
+                  <input id="add-ticker-input" type="text" placeholder="e.g. GOOG, SQ, SHOP" maxLength={5} class="flex-1 bg-ekantik-bg border border-ekantik-border rounded-lg px-3 py-2.5 text-sm text-gray-300 uppercase focus:outline-none focus:border-ekantik-gold/50" onkeydown="if(event.key==='Enter')lookupTicker()" />
+                  <button onclick="lookupTicker()" id="lookup-btn" class="px-4 py-2.5 bg-ekantik-surface border border-ekantik-border rounded-lg text-sm text-gray-300 hover:border-ekantik-gold/50 transition-colors">
+                    <i class="fas fa-search"></i>
+                  </button>
+                </div>
+              </div>
+              <div id="lookup-result" class="hidden">
+                {/* Filled dynamically by lookupTicker() */}
+              </div>
+              <div id="add-status" class="text-xs text-gray-500"></div>
+            </div>
+          </div>
+        </div>
+
         {/* Quick Research Modal for Watchlist */}
         <div id="research-modal-wl" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
           <div class="bg-ekantik-card border border-ekantik-border rounded-2xl p-6 w-full max-w-lg shadow-2xl">
@@ -589,7 +620,7 @@ const watchlistScript = `
     const container = document.getElementById('watchlist-table');
 
     if (!tickers || tickers.length === 0) {
-      container.innerHTML = '<div class="text-center py-12 text-gray-500 p-6">No tickers in watchlist.</div>';
+      container.innerHTML = '<div class="text-center py-12 text-gray-500 p-6"><i class="fas fa-binoculars text-3xl mb-3"></i><p>No tickers in watchlist. Click <b>Add Ticker</b> to get started.</p></div>';
       return;
     }
 
@@ -603,8 +634,8 @@ const watchlistScript = `
       '<th class="text-center px-5 py-3 text-[10px] font-semibold text-gray-500 uppercase tracking-widest">Impact</th>' +
       '<th class="text-right px-5 py-3 text-[10px] font-semibold text-gray-500 uppercase tracking-widest">Market Cap</th>' +
       '<th class="text-right px-5 py-3 text-[10px] font-semibold text-gray-500 uppercase tracking-widest">Fwd P/E</th>' +
-      '<th class="text-center px-5 py-3 text-[10px] font-semibold text-gray-500 uppercase tracking-widest">Earnings</th>' +
       '<th class="text-center px-5 py-3 text-[10px] font-semibold text-gray-500 uppercase tracking-widest">Tags</th>' +
+      '<th class="text-center px-5 py-3 text-[10px] font-semibold text-gray-500 uppercase tracking-widest"></th>' +
     '</tr></thead><tbody>' +
     tickers.map(t => {
       const chgColor = (t.price_change_pct || 0) >= 0 ? 'text-ekantik-green' : 'text-ekantik-red';
@@ -612,12 +643,10 @@ const watchlistScript = `
       const impactColors = { H: 'bg-red-500/20 text-red-400', M: 'bg-amber-500/20 text-amber-400', L: 'bg-green-500/20 text-green-400' };
       const convColors = { HIGH: 'text-ekantik-green', MEDIUM: 'text-ekantik-amber', LOW: 'text-gray-400' };
       const mcap = t.market_cap ? (t.market_cap >= 1e12 ? (t.market_cap/1e12).toFixed(1)+'T' : (t.market_cap/1e9).toFixed(0)+'B') : '—';
-      const earningsDate = t.earnings_date ? new Date(t.earnings_date) : null;
-      const daysUntil = earningsDate ? Math.ceil((earningsDate - new Date()) / 86400000) : null;
 
-      return '<tr class="border-b border-ekantik-border/50 hover:bg-ekantik-surface/30 cursor-pointer" onclick="location.href=\\'/tickers/' + t.id + '\\'">' +
-        '<td class="px-5 py-3"><span class="font-mono font-bold text-white text-sm">' + t.symbol + '</span></td>' +
-        '<td class="px-5 py-3 text-gray-300 text-sm">' + t.name + '</td>' +
+      return '<tr class="border-b border-ekantik-border/50 hover:bg-ekantik-surface/30 group">' +
+        '<td class="px-5 py-3 cursor-pointer" onclick="location.href=\\'/tickers/' + t.id + '\\'"><span class="font-mono font-bold text-white text-sm">' + t.symbol + '</span></td>' +
+        '<td class="px-5 py-3 text-gray-300 text-sm cursor-pointer" onclick="location.href=\\'/tickers/' + t.id + '\\'">' + t.name + '</td>' +
         '<td class="px-5 py-3 text-right text-white font-semibold text-sm">$' + (t.last_price||0).toFixed(2) + '</td>' +
         '<td class="px-5 py-3 text-right text-sm ' + chgColor + ' font-semibold">' + chgSign + (t.price_change_pct||0).toFixed(2) + '%</td>' +
         '<td class="px-5 py-3 text-right"><span class="text-ekantik-gold font-bold text-sm">' + (t.latest_ai_score ? t.latest_ai_score.toFixed(1) : '—') + '</span></td>' +
@@ -625,12 +654,137 @@ const watchlistScript = `
         '<td class="px-5 py-3 text-center">' + (t.latest_impact ? '<span class="px-2 py-0.5 rounded text-[10px] font-bold ' + (impactColors[t.latest_impact]||'') + '">' + t.latest_impact + '</span>' : '<span class="text-gray-500 text-xs">—</span>') + '</td>' +
         '<td class="px-5 py-3 text-right text-gray-300 text-sm">$' + mcap + '</td>' +
         '<td class="px-5 py-3 text-right text-gray-300 text-sm">' + (t.forward_pe ? t.forward_pe.toFixed(1) + 'x' : '—') + '</td>' +
-        '<td class="px-5 py-3 text-center text-xs">' + (daysUntil !== null ? (daysUntil <= 7 ? '<span class="text-ekantik-red font-semibold">T-' + daysUntil + '</span>' : '<span class="text-gray-400">T-' + daysUntil + '</span>') : '<span class="text-gray-500">—</span>') + '</td>' +
         '<td class="px-5 py-3 text-center">' + (t.is_mag7 ? '<span class="px-1.5 py-0.5 bg-ekantik-gold/20 text-ekantik-gold rounded text-[10px] font-bold">MAG7</span>' : '') + '</td>' +
+        '<td class="px-5 py-3 text-center">' +
+          '<button onclick="event.stopPropagation();removeTicker(\\'' + t.symbol + '\\')" class="opacity-0 group-hover:opacity-100 transition-opacity text-gray-500 hover:text-ekantik-red text-xs px-2 py-1 rounded hover:bg-ekantik-red/10" title="Remove from watchlist">' +
+            '<i class="fas fa-times"></i>' +
+          '</button>' +
+        '</td>' +
       '</tr>';
     }).join('') + '</tbody></table>';
   } catch(e) { console.error('Watchlist load failed', e); }
 })();
+
+// ── Add Ticker Functions ────────────────────────────────────
+function closeAddModal() {
+  document.getElementById('add-ticker-modal').classList.add('hidden');
+  document.getElementById('add-ticker-input').value = '';
+  document.getElementById('lookup-result').classList.add('hidden');
+  document.getElementById('lookup-result').innerHTML = '';
+  document.getElementById('add-status').textContent = '';
+}
+
+async function lookupTicker() {
+  const input = document.getElementById('add-ticker-input');
+  const sym = input.value.toUpperCase().trim();
+  if (!sym || !/^[A-Z]{1,5}$/.test(sym)) { alert('Enter a valid ticker symbol (1-5 letters)'); return; }
+
+  const btn = document.getElementById('lookup-btn');
+  btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+  const resultDiv = document.getElementById('lookup-result');
+  const statusDiv = document.getElementById('add-status');
+  resultDiv.classList.add('hidden');
+  statusDiv.textContent = 'Looking up ' + sym + ' on Yahoo Finance...';
+
+  try {
+    const res = await fetch('/api/watchlist/lookup/' + sym);
+    const data = await res.json();
+
+    if (!res.ok) {
+      statusDiv.textContent = data.error || 'Ticker not found';
+      btn.innerHTML = '<i class="fas fa-search"></i>';
+      return;
+    }
+
+    statusDiv.textContent = '';
+    const mcap = data.marketCap ? (data.marketCap >= 1e12 ? '$' + (data.marketCap/1e12).toFixed(2) + 'T' : '$' + (data.marketCap/1e9).toFixed(0) + 'B') : '—';
+    const chgColor = (data.changePercent || 0) >= 0 ? 'text-ekantik-green' : 'text-ekantik-red';
+    const chgSign = (data.changePercent || 0) >= 0 ? '+' : '';
+
+    let actionHtml = '';
+    if (data.isWatchlist) {
+      actionHtml = '<div class="mt-3 text-center"><span class="text-ekantik-amber text-sm font-semibold"><i class="fas fa-check-circle mr-1"></i>Already on watchlist</span></div>';
+    } else {
+      actionHtml = '<div class="mt-3 text-center"><button onclick="addTicker(\\'' + data.symbol + '\\')" id="add-confirm-btn" class="px-5 py-2 bg-ekantik-green text-white rounded-lg text-sm font-bold hover:bg-ekantik-green/80 transition-colors"><i class="fas fa-plus mr-1"></i>Add ' + data.symbol + ' to Watchlist</button></div>';
+    }
+
+    resultDiv.innerHTML =
+      '<div class="bg-ekantik-bg border border-ekantik-border rounded-lg p-4">' +
+        '<div class="flex items-center justify-between mb-2">' +
+          '<div>' +
+            '<span class="font-mono font-bold text-white text-lg">' + data.symbol + '</span>' +
+            '<span class="text-gray-400 text-sm ml-2">' + (data.name || '') + '</span>' +
+          '</div>' +
+          '<div class="text-right">' +
+            '<div class="text-white font-bold">$' + (data.price||0).toFixed(2) + '</div>' +
+            '<div class="text-xs font-semibold ' + chgColor + '">' + chgSign + (data.changePercent||0).toFixed(2) + '%</div>' +
+          '</div>' +
+        '</div>' +
+        '<div class="grid grid-cols-3 gap-3 text-xs">' +
+          '<div><span class="text-gray-500 block">Sector</span><span class="text-gray-300">' + (data.sector || '—') + '</span></div>' +
+          '<div><span class="text-gray-500 block">Market Cap</span><span class="text-gray-300">' + mcap + '</span></div>' +
+          '<div><span class="text-gray-500 block">Fwd P/E</span><span class="text-gray-300">' + (data.forwardPE ? data.forwardPE.toFixed(1) + 'x' : '—') + '</span></div>' +
+        '</div>' +
+        actionHtml +
+      '</div>';
+    resultDiv.classList.remove('hidden');
+  } catch(e) {
+    statusDiv.textContent = 'Error: ' + e.message;
+  }
+  btn.innerHTML = '<i class="fas fa-search"></i>';
+}
+
+async function addTicker(symbol) {
+  const btn = document.getElementById('add-confirm-btn');
+  const statusDiv = document.getElementById('add-status');
+  btn.disabled = true;
+  btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i>Adding...';
+  statusDiv.textContent = '';
+
+  try {
+    const res = await fetch('/api/watchlist/add', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ symbol })
+    });
+    const data = await res.json();
+
+    if (!res.ok) {
+      statusDiv.textContent = data.error || 'Failed to add';
+      btn.disabled = false;
+      btn.innerHTML = '<i class="fas fa-plus mr-1"></i>Add ' + symbol + ' to Watchlist';
+      return;
+    }
+
+    btn.innerHTML = '<i class="fas fa-check mr-1"></i>Added!';
+    btn.classList.remove('bg-ekantik-green');
+    btn.classList.add('bg-ekantik-green/50');
+    statusDiv.textContent = symbol + ' added to watchlist. Reloading...';
+    setTimeout(() => { closeAddModal(); location.reload(); }, 800);
+  } catch(e) {
+    statusDiv.textContent = 'Error: ' + e.message;
+    btn.disabled = false;
+    btn.innerHTML = '<i class="fas fa-plus mr-1"></i>Add ' + symbol + ' to Watchlist';
+  }
+}
+
+// ── Remove Ticker Function ──────────────────────────────────
+async function removeTicker(symbol) {
+  if (!confirm('Remove ' + symbol + ' from watchlist?')) return;
+  try {
+    const res = await fetch('/api/watchlist/remove', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ symbol })
+    });
+    const data = await res.json();
+    if (res.ok) {
+      location.reload();
+    } else {
+      alert(data.error || 'Failed to remove');
+    }
+  } catch(e) { alert('Error: ' + e.message); }
+}
 
 async function runWlResearch() {
   const agent = document.getElementById('wl-run-agent').value;
