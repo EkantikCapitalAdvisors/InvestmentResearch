@@ -143,7 +143,7 @@ apiRoutes.post('/research/import', async (c) => {
   const validAgents = [
     'material_events', 'bias_mode', 'mag7_monitor', 'aomg_scanner',
     'hot_micro', 'hot_macro', 'doubler', 'ai_scorer', 'social_sentiment',
-    'portfolio_heat', 'superlative_products',
+    'portfolio_heat', 'superlative_products', 'episodic_pivot',
   ]
   // Auto-detect agent type from content if not provided
   const agent = validAgents.includes(agentType) ? agentType : detectAgentType(content)
@@ -173,6 +173,7 @@ apiRoutes.get('/research/feed', async (c) => {
   const agent = c.req.query('agent')
   const impact = c.req.query('impact')
   const ticker = c.req.query('ticker')
+  const pivot = c.req.query('pivot')   // has_pivot, no_pivot, or specific pivot_type
   const from = c.req.query('from')   // ISO date string e.g. 2026-02-20
   const to = c.req.query('to')       // ISO date string e.g. 2026-02-22
   const limit = parseInt(c.req.query('limit') || '20')
@@ -186,6 +187,17 @@ apiRoutes.get('/research/feed', async (c) => {
   if (ticker) { sql += ' AND ticker_symbols LIKE ?'; params.push(`%${ticker}%`) }
   if (from) { sql += ' AND created_at >= ?'; params.push(from + ' 00:00:00') }
   if (to) { sql += ' AND created_at <= ?'; params.push(to + ' 23:59:59') }
+
+  // Pivot filtering — uses the episodic_pivot_json column
+  if (pivot === 'has_pivot') {
+    sql += ' AND episodic_pivot_json IS NOT NULL AND episodic_pivot_json != \'null\''
+  } else if (pivot === 'no_pivot') {
+    sql += ' AND (episodic_pivot_json IS NULL OR episodic_pivot_json = \'null\')'
+  } else if (pivot) {
+    // Specific pivot type — search within JSON string
+    sql += ' AND episodic_pivot_json LIKE ?'
+    params.push(`%"pivot_type":"${pivot}"%`)
+  }
 
   sql += ' ORDER BY created_at DESC LIMIT ? OFFSET ?'
   params.push(limit, offset)

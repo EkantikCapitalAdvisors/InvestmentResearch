@@ -12,6 +12,7 @@ const AGENT_LABELS: Record<string, string> = {
   doubler: ':rocket: Doubling Potential Analysis',
   aomg_scanner: ':dart: AOMG Growth Scanner',
   social_sentiment: ':speech_balloon: Social Sentiment Scanner',
+  episodic_pivot: ':zap: Episodic Pivot Scanner',
 }
 
 const IMPACT_EMOJI: Record<string, string> = {
@@ -137,6 +138,33 @@ export function buildBlockKitResponse(
     case 'social_sentiment':
       blocks.push(...buildSocialSentimentBlocks(s))
       break
+    case 'episodic_pivot':
+      blocks.push(...buildEpisodicPivotBlocks(s))
+      break
+  }
+
+  // Episodic Pivot badge (for ALL agents that identify a pivot)
+  if (s.episodic_pivot && s.episodic_pivot.identified) {
+    const pivotTypeLabels: Record<string, string> = {
+      earnings_surprise: ':chart_with_upwards_trend: EARNINGS SURPRISE',
+      regulatory_shift: ':classical_building: REGULATORY SHIFT',
+      management_change: ':bust_in_silhouette: MANAGEMENT CHANGE',
+      product_inflection: ':sparkles: PRODUCT INFLECTION',
+      macro_regime: ':bank: MACRO REGIME',
+      geopolitical: ':earth_americas: GEOPOLITICAL',
+      narrative_collapse: ':rotating_light: NARRATIVE COLLAPSE',
+      competitive_moat: ':shield: COMPETITIVE MOAT',
+      capital_event: ':moneybag: CAPITAL EVENT',
+    }
+    const pivotLabel = pivotTypeLabels[s.episodic_pivot.pivot_type] || `:zap: ${(s.episodic_pivot.pivot_type || 'UNKNOWN').toUpperCase()}`
+    const magEmoji = s.episodic_pivot.magnitude === 'high' ? ':red_circle:' : s.episodic_pivot.magnitude === 'medium' ? ':large_orange_circle:' : ':large_green_circle:'
+    const perceivedTag = s.episodic_pivot.is_perceived ? '_Perceived_' : '_Real_'
+
+    blocks.push({ type: 'divider' })
+    blocks.push({
+      type: 'section',
+      text: { type: 'mrkdwn', text: `:zap: *EPISODIC PIVOT DETECTED*\n${pivotLabel} — ${magEmoji} ${(s.episodic_pivot.magnitude || '').toUpperCase()} Magnitude — ${perceivedTag}\n>${s.episodic_pivot.event || 'No event description'}\n_Reality Change: ${s.episodic_pivot.reality_change || 'N/A'}_` }
+    })
   }
 
   // Recommended action
@@ -541,6 +569,105 @@ function buildSocialSentimentBlocks(s: any): any[] {
     blocks.push({
       type: 'section',
       text: { type: 'mrkdwn', text: `:no_entry: *Contrarian / Bear Signals*\n${conLines}` }
+    })
+  }
+
+  return blocks
+}
+
+// ── Episodic Pivot Blocks ─────────────────────────────────
+function buildEpisodicPivotBlocks(s: any): any[] {
+  const blocks: any[] = []
+  const ep = s.episodic_pivot || {}
+
+  blocks.push({ type: 'divider' })
+
+  // Pivot detection verdict
+  if (s.pivot_detected === false || !ep.identified) {
+    blocks.push({
+      type: 'section',
+      text: { type: 'mrkdwn', text: `:no_entry_sign: *NO EPISODIC PIVOT DETECTED*\n_No discrete event found that would cause a material reality change. This means: DO NOT TRADE._` }
+    })
+    return blocks
+  }
+
+  // Pivot type + magnitude
+  const pivotTypeLabels: Record<string, string> = {
+    earnings_surprise: ':chart_with_upwards_trend: EARNINGS SURPRISE',
+    regulatory_shift: ':classical_building: REGULATORY SHIFT',
+    management_change: ':bust_in_silhouette: MANAGEMENT CHANGE',
+    product_inflection: ':sparkles: PRODUCT INFLECTION',
+    macro_regime: ':bank: MACRO REGIME',
+    geopolitical: ':earth_americas: GEOPOLITICAL',
+    narrative_collapse: ':rotating_light: NARRATIVE COLLAPSE',
+    competitive_moat: ':shield: COMPETITIVE MOAT',
+    capital_event: ':moneybag: CAPITAL EVENT',
+  }
+
+  const pivotLabel = pivotTypeLabels[ep.pivot_type] || `:zap: ${(ep.pivot_type || 'UNKNOWN').toUpperCase()}`
+  const magBar = ep.magnitude === 'high' ? '████████░░' : ep.magnitude === 'medium' ? '█████░░░░░' : '██░░░░░░░░'
+  const magEmoji = ep.magnitude === 'high' ? ':red_circle:' : ep.magnitude === 'medium' ? ':large_orange_circle:' : ':large_green_circle:'
+  const perceivedTag = ep.is_perceived ? ':thought_balloon: PERCEIVED (narrative shift)' : ':white_check_mark: REAL (fundamental change)'
+
+  blocks.push({
+    type: 'section',
+    text: { type: 'mrkdwn', text: `:zap: *PIVOT DETECTED:* ${pivotLabel}\n\n>${ep.event || 'No event description'}` }
+  })
+
+  // Details grid
+  let detailText = `*Reality Change:* ${ep.reality_change || 'N/A'}\n`
+  detailText += `*Magnitude:* \`${magBar}\` ${magEmoji} ${(ep.magnitude || '').toUpperCase()}\n`
+  detailText += `*Type:* ${perceivedTag}\n`
+  if (ep.catalyst_date) detailText += `*Catalyst Date:* ${ep.catalyst_date}\n`
+  if (ep.time_horizon) detailText += `*Time Horizon:* ${ep.time_horizon}\n`
+
+  // Pricing status
+  if (ep.pricing_status) {
+    const pricingEmoji: Record<string, string> = {
+      unpriced: ':green_book: UNPRICED (early)',
+      partially_priced: ':orange_book: PARTIALLY PRICED',
+      fully_priced: ':closed_book: FULLY PRICED',
+    }
+    detailText += `*Pricing Status:* ${pricingEmoji[ep.pricing_status] || ep.pricing_status}\n`
+  }
+
+  if (ep.trade_window !== undefined) {
+    detailText += `*Trade Window:* ${ep.trade_window ? ':white_check_mark: OPEN' : ':no_entry: CLOSED'}\n`
+  }
+
+  blocks.push({
+    type: 'section',
+    text: { type: 'mrkdwn', text: detailText }
+  })
+
+  // Trade thesis
+  const thesis = s.trade_thesis
+  if (thesis) {
+    blocks.push({ type: 'divider' })
+    let thesisText = ':memo: *TRADE THESIS*\n'
+    if (thesis.direction) thesisText += `*Direction:* ${thesis.direction.toUpperCase()}\n`
+    if (thesis.entry_logic) thesisText += `*Entry Logic:* ${thesis.entry_logic}\n`
+    if (thesis.risk) thesisText += `*Key Risk:* ${thesis.risk}\n`
+    if (thesis.invalidation) thesisText += `*Invalidation:* ${thesis.invalidation}\n`
+    if (thesis.time_horizon) thesisText += `*Hold Period:* ${thesis.time_horizon}\n`
+
+    blocks.push({
+      type: 'section',
+      text: { type: 'mrkdwn', text: thesisText }
+    })
+  }
+
+  // Recommended next agents
+  if (s.recommended_next_agents && s.recommended_next_agents.length > 0) {
+    const agentCmdMap: Record<string, string> = {
+      material_events: '/material', bias_mode: '/bias', mag7_monitor: '/mag7',
+      ai_scorer: '/score', hot_micro: '/trend', hot_macro: '/macro',
+      doubler: '/doubler', social_sentiment: '/sentiment', aomg_scanner: '/aomg',
+    }
+    const nextSteps = s.recommended_next_agents.map((a: string) => `\`${agentCmdMap[a] || a}\``).join(' → ')
+    blocks.push({
+      type: 'section',
+      text: { type: 'mrkdwn', text: `:point_right: *Run Next:* ${nextSteps}` }
     })
   }
 

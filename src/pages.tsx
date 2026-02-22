@@ -29,12 +29,27 @@ pageRoutes.get('/', (c) => {
               <option value="doubler">Doubler</option>
               <option value="ai_scorer">AI Scorer</option>
               <option value="social_sentiment">Social Sentiment</option>
+              <option value="episodic_pivot">Episodic Pivot</option>
             </select>
             <select id="filter-impact" class="bg-ekantik-bg border border-ekantik-border rounded-lg px-3 py-2 text-sm text-gray-300 focus:outline-none focus:border-ekantik-gold/50">
               <option value="">All Impact</option>
               <option value="H">High</option>
               <option value="M">Medium</option>
               <option value="L">Low</option>
+            </select>
+            <select id="filter-pivot" class="bg-ekantik-bg border border-ekantik-border rounded-lg px-3 py-2 text-sm text-gray-300 focus:outline-none focus:border-ekantik-gold/50">
+              <option value="">All Pivots</option>
+              <option value="has_pivot">Has Pivot</option>
+              <option value="no_pivot">No Pivot</option>
+              <option value="earnings_surprise">Earnings Surprise</option>
+              <option value="regulatory_shift">Regulatory Shift</option>
+              <option value="management_change">Management Change</option>
+              <option value="product_inflection">Product Inflection</option>
+              <option value="macro_regime">Macro Regime</option>
+              <option value="geopolitical">Geopolitical</option>
+              <option value="narrative_collapse">Narrative Collapse</option>
+              <option value="competitive_moat">Competitive Moat</option>
+              <option value="capital_event">Capital Event</option>
             </select>
             <select id="filter-date" class="bg-ekantik-bg border border-ekantik-border rounded-lg px-3 py-2 text-sm text-gray-300 focus:outline-none focus:border-ekantik-gold/50">
               <option value="">All Time</option>
@@ -78,6 +93,7 @@ pageRoutes.get('/', (c) => {
                   <option value="hot_macro">Hot Macro Events</option>
                   <option value="doubler">Doubling Potential Analysis</option>
                   <option value="social_sentiment">Social Sentiment Scanner</option>
+                  <option value="episodic_pivot">Episodic Pivot Scanner</option>
                 </select>
               </div>
               <div>
@@ -121,6 +137,7 @@ pageRoutes.get('/', (c) => {
                     <option value="doubler">Doubling Potential Analysis</option>
                     <option value="aomg_scanner">AOMG Growth Scanner</option>
                     <option value="social_sentiment">Social Sentiment Scanner</option>
+                    <option value="episodic_pivot">Episodic Pivot Scanner</option>
                   </select>
                 </div>
                 <div>
@@ -258,6 +275,7 @@ pageRoutes.get('/watchlist', (c) => {
                   <option value="ai_scorer">AI Scoring Framework</option>
                   <option value="doubler">Doubling Potential Analysis</option>
                   <option value="social_sentiment">Social Sentiment Scanner</option>
+                  <option value="episodic_pivot">Episodic Pivot Scanner</option>
                 </select>
               </div>
               <div>
@@ -652,6 +670,7 @@ const agentLabels = {
   ai_scorer: 'AI SCORER',
   portfolio_heat: 'PORTFOLIO HEAT',
   social_sentiment: 'SOCIAL SENTIMENT',
+  episodic_pivot: 'EPISODIC PIVOT',
 };
 const agentColors = {
   material_events: 'bg-blue-500/20 text-blue-400',
@@ -663,6 +682,7 @@ const agentColors = {
   doubler: 'bg-orange-500/20 text-orange-400',
   ai_scorer: 'bg-indigo-500/20 text-indigo-400',
   social_sentiment: 'bg-teal-500/20 text-teal-400',
+  episodic_pivot: 'bg-amber-500/20 text-amber-400',
 };
 const impactColors = { H: 'bg-red-500/20 text-red-400', M: 'bg-amber-500/20 text-amber-400', L: 'bg-green-500/20 text-green-400' };
 const impactEmoji = { H: '<i class="fas fa-circle text-red-500 text-[8px]"></i>', M: '<i class="fas fa-circle text-amber-500 text-[8px]"></i>', L: '<i class="fas fa-circle text-green-500 text-[8px]"></i>' };
@@ -693,6 +713,7 @@ function resolveDateRange(preset) {
 async function loadFeed() {
   const agentFilter = document.getElementById('filter-agent').value;
   const impactFilter = document.getElementById('filter-impact').value;
+  const pivotFilter = document.getElementById('filter-pivot').value;
   const datePreset = document.getElementById('filter-date').value;
   const container = document.getElementById('research-feed');
 
@@ -704,6 +725,7 @@ async function loadFeed() {
     const params = new URLSearchParams();
     if (agentFilter) params.set('agent', agentFilter);
     if (impactFilter) params.set('impact', impactFilter);
+    if (pivotFilter) params.set('pivot', pivotFilter);
 
     // Date range
     if (datePreset === 'custom') {
@@ -724,7 +746,7 @@ async function loadFeed() {
     const { reports } = await feedRes.json();
 
     if (!reports || reports.length === 0) {
-      const filterActive = agentFilter || impactFilter || datePreset;
+      const filterActive = agentFilter || impactFilter || datePreset || pivotFilter;
       container.innerHTML = '<div class="text-center py-12 text-gray-500"><i class="fas fa-' + (filterActive ? 'filter' : 'inbox') + ' text-3xl mb-3"></i><p>' + (filterActive ? 'No reports match the selected filters. Try adjusting or clearing the filter.' : 'No research reports yet. Reports will appear here as they are generated.') + '</p>' + (filterActive ? '<button onclick="clearFilters()" class="mt-3 px-4 py-2 bg-ekantik-surface border border-ekantik-border rounded-lg text-sm text-gray-300 hover:border-ekantik-gold/50 transition-colors"><i class="fas fa-times mr-1"></i>Clear Filters</button>' : '') + '</div>';
       return;
     }
@@ -732,7 +754,47 @@ async function loadFeed() {
     container.innerHTML = reports.map(r => {
       const tickers = JSON.parse(r.ticker_symbols || '[]');
       const structured = r.structured_json ? JSON.parse(r.structured_json) : {};
+      const pivot = r.episodic_pivot_json ? JSON.parse(r.episodic_pivot_json) : (structured.episodic_pivot || null);
       const timeAgo = getTimeAgo(r.created_at);
+
+      // Pivot badge rendering
+      const pivotTypeIcons = {
+        earnings_surprise: '<i class="fas fa-chart-line"></i>',
+        regulatory_shift: '<i class="fas fa-landmark"></i>',
+        management_change: '<i class="fas fa-user-tie"></i>',
+        product_inflection: '<i class="fas fa-lightbulb"></i>',
+        macro_regime: '<i class="fas fa-university"></i>',
+        geopolitical: '<i class="fas fa-globe"></i>',
+        narrative_collapse: '<i class="fas fa-exclamation-triangle"></i>',
+        competitive_moat: '<i class="fas fa-shield-alt"></i>',
+        capital_event: '<i class="fas fa-dollar-sign"></i>',
+      };
+      const pivotTypeLabels = {
+        earnings_surprise: 'EARNINGS', regulatory_shift: 'REGULATORY',
+        management_change: 'MGMT CHANGE', product_inflection: 'PRODUCT',
+        macro_regime: 'MACRO', geopolitical: 'GEOPOLITICAL',
+        narrative_collapse: 'NARRATIVE', competitive_moat: 'MOAT',
+        capital_event: 'CAPITAL',
+      };
+      let pivotBadge = '';
+      if (pivot && pivot.identified) {
+        const magClass = pivot.magnitude === 'high' ? 'text-red-400 bg-red-500/20' : pivot.magnitude === 'medium' ? 'text-amber-400 bg-amber-500/20' : 'text-green-400 bg-green-500/20';
+        const icon = pivotTypeIcons[pivot.pivot_type] || '<i class="fas fa-bolt"></i>';
+        const label = pivotTypeLabels[pivot.pivot_type] || (pivot.pivot_type || 'PIVOT').toUpperCase();
+        pivotBadge = '<div class=\"mt-2 flex items-center gap-2\">' +
+          '<span class=\"inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[10px] font-bold tracking-wider border border-amber-500/30 bg-amber-500/10 text-amber-400\">' +
+            '<i class=\"fas fa-bolt text-amber-400\"></i> PIVOT: ' + icon + ' ' + label +
+          '</span>' +
+          '<span class=\"px-2 py-0.5 rounded text-[10px] font-semibold ' + magClass + '\">' + (pivot.magnitude || '').toUpperCase() + '</span>' +
+          (pivot.is_perceived ? '<span class=\"text-[10px] text-gray-500 italic\">perceived</span>' : '<span class=\"text-[10px] text-emerald-500 italic\">real</span>') +
+          (pivot.pricing_status ? '<span class=\"text-[10px] text-gray-500\">' + pivot.pricing_status.replace('_', ' ') + '</span>' : '') +
+        '</div>';
+        if (pivot.reality_change) {
+          pivotBadge += '<p class=\"mt-1 text-xs text-gray-400 italic line-clamp-1\">' + escapeHtml(pivot.reality_change) + '</p>';
+        }
+      } else if (r.agent_type === 'episodic_pivot') {
+        pivotBadge = '<div class=\"mt-2\"><span class=\"inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-semibold bg-gray-500/20 text-gray-400\"><i class=\"fas fa-times-circle\"></i> NO PIVOT DETECTED</span></div>';
+      }
 
       return '<div class="report-card bg-ekantik-card border border-ekantik-border rounded-xl p-5 cursor-pointer" onclick="toggleReport(this)">' +
         '<div class="flex items-start justify-between">' +
@@ -749,7 +811,8 @@ async function loadFeed() {
           (r.conviction_level ? '<span>Conviction: <span class="font-semibold text-white">' + r.conviction_level + '</span></span>' : '') +
           '<span>' + timeAgo + '</span>' +
         '</div>' +
-        (structured.key_takeaway ? '<p class="mt-3 text-gray-300 text-sm leading-relaxed line-clamp-2">"' + structured.key_takeaway + '"</p>' : '') +
+        pivotBadge +
+        (structured.key_takeaway ? '<p class=\"mt-3 text-gray-300 text-sm leading-relaxed line-clamp-2\">\"' + structured.key_takeaway + '\"</p>' : '') +
         '<div class="mt-3 flex items-center gap-3 text-xs text-gray-500">' +
           '<span class="flex items-center gap-1"><i class="' + (triggerIcons[r.trigger_source] || 'fas fa-question') + '"></i> via ' + r.trigger_source + '</span>' +
           (r.model_used ? '<span>' + r.model_used + '</span>' : '') +
@@ -773,6 +836,7 @@ async function loadFeed() {
 function clearFilters() {
   document.getElementById('filter-agent').value = '';
   document.getElementById('filter-impact').value = '';
+  document.getElementById('filter-pivot').value = '';
   document.getElementById('filter-date').value = '';
   document.getElementById('filter-date-from').value = '';
   document.getElementById('filter-date-to').value = '';
@@ -783,6 +847,7 @@ function clearFilters() {
 // ── Wire up filter dropdowns ──────────────────────────────
 document.getElementById('filter-agent').addEventListener('change', loadFeed);
 document.getElementById('filter-impact').addEventListener('change', loadFeed);
+document.getElementById('filter-pivot').addEventListener('change', loadFeed);
 document.getElementById('filter-date').addEventListener('change', function() {
   const customRange = document.getElementById('custom-date-range');
   if (this.value === 'custom') {

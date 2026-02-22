@@ -179,13 +179,16 @@ export async function persistReport(
 
   const structured = result.structured || {}
 
+  // Extract episodic pivot data if present
+  const episodicPivot = structured.episodic_pivot ? JSON.stringify(structured.episodic_pivot) : null
+
   await db.prepare(`
     INSERT INTO research_reports (
       id, agent_type, ticker_symbols, trigger_source, model_used, api_mode,
       raw_markdown, structured_json, impact_score, ai_composite_score,
       conviction_level, token_usage, cost_estimate, processing_time_ms,
-      status, slack_channel_id, slack_message_ts
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'completed', ?, ?)
+      status, slack_channel_id, slack_message_ts, episodic_pivot_json
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'completed', ?, ?, ?)
   `).bind(
     reportId,
     agentType,
@@ -202,7 +205,8 @@ export async function persistReport(
     result.costEstimate,
     result.processingTimeMs,
     slackChannelId || null,
-    slackMessageTs || null
+    slackMessageTs || null,
+    episodicPivot
   ).run()
 
   // Persist agent-specific data

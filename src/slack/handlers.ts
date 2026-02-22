@@ -97,6 +97,7 @@ slackRoutes.post('/commands', async (c) => {
     '/macro': { agent: 'hot_macro', needsTicker: false, description: 'Hot Macro Events' },
     '/doubler': { agent: 'doubler', needsTicker: true, description: 'Doubling Potential Analysis' },
     '/sentiment': { agent: 'social_sentiment', needsTicker: false, description: 'Social Sentiment Scanner' },
+    '/pivot': { agent: 'episodic_pivot', needsTicker: true, description: 'Episodic Pivot Scanner' },
   }
 
   // ─────────────────────────────────────────────────────────
@@ -246,8 +247,8 @@ slackRoutes.get('/health', (c) => {
   return c.json({
     status: 'ok',
     service: 'ekantik-slack',
-    commands: ['/material', '/bias', '/mag7', '/score', '/heat', '/watch', '/aomg', '/trend', '/macro', '/doubler', '/sentiment', '/save'],
-    version: '2.0.0',
+    commands: ['/material', '/bias', '/mag7', '/score', '/heat', '/watch', '/aomg', '/trend', '/macro', '/doubler', '/sentiment', '/pivot', '/save'],
+    version: '3.0.0',
   })
 })
 
@@ -360,7 +361,7 @@ export async function processPortalResearch(
 const VALID_AGENTS = [
   'material_events', 'bias_mode', 'mag7_monitor', 'aomg_scanner',
   'hot_micro', 'hot_macro', 'doubler', 'ai_scorer', 'social_sentiment',
-  'portfolio_heat', 'superlative_products',
+  'portfolio_heat', 'superlative_products', 'episodic_pivot',
 ]
 
 const AGENT_DETECTION_KEYWORDS: Record<string, string[]> = {
@@ -373,6 +374,7 @@ const AGENT_DETECTION_KEYWORDS: Record<string, string[]> = {
   doubler: ['doubling potential', 'doubler', '100% upside', 'double in', '2x thesis'],
   aomg_scanner: ['aomg', 'area of maximum growth', 'tam.*sam.*som'],
   social_sentiment: ['social sentiment', 'reddit', 'wsb', 'wallstreetbets', 'fintwit', 'social buzz'],
+  episodic_pivot: ['episodic pivot', 'reality change', 'pivot detected', 'pivot type', 'trade window', 'pricing status'],
 }
 
 export function detectAgentType(text: string): string {
@@ -510,8 +512,8 @@ async function handleSaveCommand(
         id, agent_type, ticker_symbols, trigger_source, model_used, api_mode,
         raw_markdown, structured_json, impact_score, ai_composite_score,
         conviction_level, token_usage, cost_estimate, processing_time_ms,
-        status, slack_channel_id
-      ) VALUES (?, ?, ?, 'manual', ?, 'import', ?, ?, ?, ?, ?, '{}', 0, 0, 'completed', ?)
+        status, slack_channel_id, episodic_pivot_json
+      ) VALUES (?, ?, ?, 'manual', ?, 'import', ?, ?, ?, ?, ?, '{}', 0, 0, 'completed', ?, ?)
     `).bind(
       reportId,
       agentType,
@@ -523,6 +525,7 @@ async function handleSaveCommand(
       structured.ai_composite_score || structured.ai_scores?.composite || null,
       structured.conviction_level,
       channelId,
+      structured.episodic_pivot ? JSON.stringify(structured.episodic_pivot) : null,
     ).run()
 
     console.log(`[Save] Report imported: ${reportId} | agent=${agentType} | tickers=${parsedTickers.join(',')} | by=${userName}`)
@@ -539,6 +542,7 @@ async function handleSaveCommand(
       ai_scorer: 'AI Scorer', hot_micro: 'Hot Micro', hot_macro: 'Hot Macro',
       doubler: 'Doubler', aomg_scanner: 'AOMG Scanner', social_sentiment: 'Social Sentiment',
       portfolio_heat: 'Portfolio Heat', superlative_products: 'Superlative Products',
+      episodic_pivot: 'Episodic Pivot',
     }
 
     const confirmBlocks = {
@@ -644,8 +648,8 @@ export async function saveExternalReport(
       id, agent_type, ticker_symbols, trigger_source, model_used, api_mode,
       raw_markdown, structured_json, impact_score, ai_composite_score,
       conviction_level, token_usage, cost_estimate, processing_time_ms,
-      status, slack_channel_id
-    ) VALUES (?, ?, ?, 'manual', ?, 'import', ?, ?, ?, ?, ?, '{}', 0, 0, 'completed', ?)
+      status, slack_channel_id, episodic_pivot_json
+    ) VALUES (?, ?, ?, 'manual', ?, 'import', ?, ?, ?, ?, ?, '{}', 0, 0, 'completed', ?, ?)
   `).bind(
     reportId,
     agentType,
@@ -657,6 +661,7 @@ export async function saveExternalReport(
     structured.ai_composite_score || null,
     structured.conviction_level,
     channelId || null,
+    structured.episodic_pivot ? JSON.stringify(structured.episodic_pivot) : null,
   ).run()
 
   return reportId
