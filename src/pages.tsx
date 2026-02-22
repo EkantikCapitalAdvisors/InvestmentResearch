@@ -626,58 +626,63 @@ pageRoutes.get('/settings', (c) => {
 // ============================================================
 
 const dashboardScript = `
-(async () => {
-  // Load stats
-  try {
-    const statsRes = await fetch('/api/stats');
-    const stats = await statsRes.json();
-    document.getElementById('stat-reports').textContent = stats.totalReports;
-    document.getElementById('stat-high').textContent = stats.highImpactReports;
-    document.getElementById('stat-watchlist').textContent = stats.watchlistTickers;
-    document.getElementById('stat-signals').textContent = stats.activeSignals;
-    document.getElementById('stat-positions').textContent = stats.openPositions;
-  } catch(e) { console.error('Stats load failed', e); }
+// ── Shared constants for rendering ────────────────────────
+const agentLabels = {
+  material_events: 'MATERIAL EVENTS',
+  bias_mode: 'BIAS MODE',
+  mag7_monitor: 'MAG 7 MONITOR',
+  aomg_scanner: 'AOMG SCANNER',
+  hot_micro: 'HOT MICRO',
+  hot_macro: 'HOT MACRO',
+  doubler: 'DOUBLER',
+  ai_scorer: 'AI SCORER',
+  portfolio_heat: 'PORTFOLIO HEAT',
+  social_sentiment: 'SOCIAL SENTIMENT',
+};
+const agentColors = {
+  material_events: 'bg-blue-500/20 text-blue-400',
+  bias_mode: 'bg-purple-500/20 text-purple-400',
+  mag7_monitor: 'bg-yellow-500/20 text-yellow-400',
+  aomg_scanner: 'bg-green-500/20 text-green-400',
+  hot_micro: 'bg-pink-500/20 text-pink-400',
+  hot_macro: 'bg-cyan-500/20 text-cyan-400',
+  doubler: 'bg-orange-500/20 text-orange-400',
+  ai_scorer: 'bg-indigo-500/20 text-indigo-400',
+  social_sentiment: 'bg-teal-500/20 text-teal-400',
+};
+const impactColors = { H: 'bg-red-500/20 text-red-400', M: 'bg-amber-500/20 text-amber-400', L: 'bg-green-500/20 text-green-400' };
+const impactEmoji = { H: '<i class="fas fa-circle text-red-500 text-[8px]"></i>', M: '<i class="fas fa-circle text-amber-500 text-[8px]"></i>', L: '<i class="fas fa-circle text-green-500 text-[8px]"></i>' };
+const triggerIcons = { slack: 'fab fa-slack', cron: 'fas fa-clock', event: 'fas fa-bolt', portal: 'fas fa-globe', manual: 'fas fa-user' };
 
-  // Load feed
+// ── Load feed with filters ────────────────────────────────
+async function loadFeed() {
+  const agentFilter = document.getElementById('filter-agent').value;
+  const impactFilter = document.getElementById('filter-impact').value;
+  const container = document.getElementById('research-feed');
+
+  // Show loading state
+  container.innerHTML = '<div class="text-center py-12 text-gray-500"><i class="fas fa-spinner fa-spin text-2xl mb-3"></i><p>Loading intelligence feed...</p></div>';
+
   try {
-    const feedRes = await fetch('/api/research/feed');
+    // Build query string from active filters
+    const params = new URLSearchParams();
+    if (agentFilter) params.set('agent', agentFilter);
+    if (impactFilter) params.set('impact', impactFilter);
+    params.set('limit', '50');
+    const qs = params.toString();
+
+    const feedRes = await fetch('/api/research/feed' + (qs ? '?' + qs : ''));
     const { reports } = await feedRes.json();
-    const container = document.getElementById('research-feed');
 
     if (!reports || reports.length === 0) {
-      container.innerHTML = '<div class="text-center py-12 text-gray-500"><i class="fas fa-inbox text-3xl mb-3"></i><p>No research reports yet. Reports will appear here as they are generated.</p></div>';
+      const filterActive = agentFilter || impactFilter;
+      container.innerHTML = '<div class="text-center py-12 text-gray-500"><i class="fas fa-' + (filterActive ? 'filter' : 'inbox') + ' text-3xl mb-3"></i><p>' + (filterActive ? 'No reports match the selected filters. Try adjusting or clearing the filter.' : 'No research reports yet. Reports will appear here as they are generated.') + '</p>' + (filterActive ? '<button onclick="clearFilters()" class="mt-3 px-4 py-2 bg-ekantik-surface border border-ekantik-border rounded-lg text-sm text-gray-300 hover:border-ekantik-gold/50 transition-colors"><i class="fas fa-times mr-1"></i>Clear Filters</button>' : '') + '</div>';
       return;
     }
 
     container.innerHTML = reports.map(r => {
       const tickers = JSON.parse(r.ticker_symbols || '[]');
       const structured = r.structured_json ? JSON.parse(r.structured_json) : {};
-      const agentLabels = {
-        material_events: 'MATERIAL EVENTS',
-        bias_mode: 'BIAS MODE',
-        mag7_monitor: 'MAG 7 MONITOR',
-        aomg_scanner: 'AOMG SCANNER',
-        hot_micro: 'HOT MICRO',
-        hot_macro: 'HOT MACRO',
-        doubler: 'DOUBLER',
-        ai_scorer: 'AI SCORER',
-        portfolio_heat: 'PORTFOLIO HEAT',
-        social_sentiment: 'SOCIAL SENTIMENT',
-      };
-      const agentColors = {
-        material_events: 'bg-blue-500/20 text-blue-400',
-        bias_mode: 'bg-purple-500/20 text-purple-400',
-        mag7_monitor: 'bg-yellow-500/20 text-yellow-400',
-        aomg_scanner: 'bg-green-500/20 text-green-400',
-        hot_micro: 'bg-pink-500/20 text-pink-400',
-        hot_macro: 'bg-cyan-500/20 text-cyan-400',
-        doubler: 'bg-orange-500/20 text-orange-400',
-        ai_scorer: 'bg-indigo-500/20 text-indigo-400',
-        social_sentiment: 'bg-teal-500/20 text-teal-400',
-      };
-      const impactColors = { H: 'bg-red-500/20 text-red-400', M: 'bg-amber-500/20 text-amber-400', L: 'bg-green-500/20 text-green-400' };
-      const impactEmoji = { H: '<i class="fas fa-circle text-red-500 text-[8px]"></i>', M: '<i class="fas fa-circle text-amber-500 text-[8px]"></i>', L: '<i class="fas fa-circle text-green-500 text-[8px]"></i>' };
-      const triggerIcons = { slack: 'fab fa-slack', cron: 'fas fa-clock', event: 'fas fa-bolt', portal: 'fas fa-globe', manual: 'fas fa-user' };
       const timeAgo = getTimeAgo(r.created_at);
 
       return '<div class="report-card bg-ekantik-card border border-ekantik-border rounded-xl p-5 cursor-pointer" onclick="toggleReport(this)">' +
@@ -713,6 +718,34 @@ const dashboardScript = `
       '</div>';
     }).join('');
   } catch(e) { console.error('Feed load failed', e); }
+}
+
+// ── Clear all filters ─────────────────────────────────────
+function clearFilters() {
+  document.getElementById('filter-agent').value = '';
+  document.getElementById('filter-impact').value = '';
+  loadFeed();
+}
+
+// ── Wire up filter dropdowns ──────────────────────────────
+document.getElementById('filter-agent').addEventListener('change', loadFeed);
+document.getElementById('filter-impact').addEventListener('change', loadFeed);
+
+// ── Initial load ──────────────────────────────────────────
+(async () => {
+  // Load stats
+  try {
+    const statsRes = await fetch('/api/stats');
+    const stats = await statsRes.json();
+    document.getElementById('stat-reports').textContent = stats.totalReports;
+    document.getElementById('stat-high').textContent = stats.highImpactReports;
+    document.getElementById('stat-watchlist').textContent = stats.watchlistTickers;
+    document.getElementById('stat-signals').textContent = stats.activeSignals;
+    document.getElementById('stat-positions').textContent = stats.openPositions;
+  } catch(e) { console.error('Stats load failed', e); }
+
+  // Load feed (respects any pre-set filter values)
+  await loadFeed();
 })();
 
 function toggleReport(el) {
