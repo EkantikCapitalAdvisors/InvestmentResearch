@@ -1,6 +1,15 @@
 // ============================================================
 // EKANTIK SLACK INTEGRATION — Command Handlers
-// HTTP Webhook mode (no Railway needed, runs on Workers)
+// HTTP Webhook mode (runs on Cloudflare Pages Workers)
+//
+// ARCHITECTURE NOTE:
+// Cloudflare Pages kills waitUntil() promises after ~30s.
+// Claude API calls take 30-90s. So we CAN'T use the standard
+// Slack pattern of "ack in 3s + waitUntil for background work".
+//
+// Instead, we run the research SYNCHRONOUSLY. Slack will show
+// a brief "timed out" for the slash command, but the full result
+// will appear in the channel via response_url (valid 30 min).
 // ============================================================
 import { Hono } from 'hono'
 import { callClaude, persistReport } from '../research/engine'
@@ -22,7 +31,6 @@ async function verifySlackSignature(
   timestamp: string,
   body: string
 ): Promise<boolean> {
-  // Prevent replay attacks (5 min window)
   const now = Math.floor(Date.now() / 1000)
   if (Math.abs(now - parseInt(timestamp)) > 300) return false
 
@@ -58,7 +66,7 @@ function parseFormBody(body: string): Record<string, string> {
 slackRoutes.post('/commands', async (c) => {
   const rawBody = await c.req.text()
 
-  // Verify Slack signature if signing secret is configured
+  // Verify Slack signature
   if (c.env.SLACK_SIGNING_SECRET) {
     const signature = c.req.header('x-slack-signature') || ''
     const timestamp = c.req.header('x-slack-request-timestamp') || ''
@@ -69,8 +77,8 @@ slackRoutes.post('/commands', async (c) => {
   }
 
   const form = parseFormBody(rawBody)
-  const command = form.command    // e.g., "/material"
-  const text = form.text || ''   // e.g., "NVDA"
+  const command = form.command
+  const text = form.text || ''
   const responseUrl = form.response_url
   const channelId = form.channel_id
   const userId = form.user_id
@@ -108,16 +116,21 @@ slackRoutes.post('/commands', async (c) => {
     })
   }
 
-  // Immediate acknowledgment — Slack requires response within 3 seconds
-  // Then process in background via executionCtx.waitUntil()
-
-  // Handle read-only commands (no Claude needed — fast, <1s)
+  // ─────────────────────────────────────────────────────────
+  // Handle READ-ONLY commands (fast, <1s) — these can use ack + waitUntil
+  // ─────────────────────────────────────────────────────────
   if (['portfolio_heat_view', 'watchlist_view'].includes(cmdConfig.agent)) {
+    // These are fast enough for waitUntil
     c.executionCtx.waitUntil(handleReadOnlyCommand(c.env.DB, c.env.SLACK_BOT_TOKEN || '', cmdConfig.agent, responseUrl))
     return c.json(buildAckResponse(cmdConfig.description, tickers, true))
   }
 
-  // Handle research commands (Claude + web search — 30-90s)
+  // ─────────────────────────────────────────────────────────
+  // Handle RESEARCH commands (Claude + web search — 30-90s)
+  // These are too slow for waitUntil on CF Pages.
+  // Run SYNCHRONOUSLY — Slack will timeout the slash command
+  // but the result will appear via response_url.
+  // ─────────────────────────────────────────────────────────
   if (!c.env.ANTHROPIC_API_KEY) {
     return c.json({
       response_type: 'ephemeral',
@@ -125,26 +138,77 @@ slackRoutes.post('/commands', async (c) => {
     })
   }
 
-  // Use waitUntil to process Claude API call in the background
-  c.executionCtx.waitUntil(
-    handleResearchCommand(
-      c.env.ANTHROPIC_API_KEY,
-      c.env.DB,
-      c.env.SLACK_BOT_TOKEN || '',
-      cmdConfig.agent,
-      tickers,
-      text,
-      responseUrl,
-      channelId,
-      userName
-    )
-  )
+  // Step 1: Post a "processing" message to Slack immediately via response_url
+  // This replaces the slash command's "thinking..." with our custom message
+  try {
+    await fetch(responseUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        response_type: 'in_channel',
+        text: `:hourglass_flowing_sand: *${cmdConfig.description}* initiated for *${tickers.join(', ')}*...\n_Claude is analyzing with web search — typically 30-90 seconds._`
+      })
+    })
+    console.log(`[Slack] Posted processing message for ${cmdConfig.agent} ${tickers.join(',')}`)
+  } catch (e) {
+    console.error('[Slack] Failed to post processing message:', e)
+  }
 
-  return c.json(buildAckResponse(cmdConfig.description, tickers, false))
+  // Step 2: Run Claude research SYNCHRONOUSLY (this takes 30-90s)
+  try {
+    console.log(`[Slack] Starting ${cmdConfig.agent} for ${tickers.join(',')}`)
+    const result = await callClaude(
+      c.env.ANTHROPIC_API_KEY, 
+      cmdConfig.agent, 
+      tickers, 
+      text !== tickers.join(' ') ? text : undefined
+    )
+    console.log(`[Slack] Claude completed in ${result.processingTimeMs}ms`)
+
+    // Persist to D1
+    const reportId = await persistReport(c.env.DB, cmdConfig.agent, tickers, 'slack', result, channelId)
+    console.log(`[Slack] Report saved: ${reportId}`)
+
+    // Build Block Kit response
+    const blocks = buildBlockKitResponse(
+      cmdConfig.agent, tickers, result.structured, result.rawMarkdown,
+      reportId, result.costEstimate, result.processingTimeMs
+    )
+
+    // Step 3: Post the full result to Slack via response_url
+    const slackResp = await fetch(responseUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        response_type: 'in_channel',
+        replace_original: false,
+        ...blocks
+      })
+    })
+    console.log(`[Slack] Result posted: ${slackResp.status}`)
+
+    // Return empty 200 (Slack may have already timed out the original request, that's OK)
+    return c.json({ ok: true })
+
+  } catch (error: any) {
+    console.error('[Slack] Research failed:', error.message)
+    
+    // Post error to Slack
+    try {
+      await fetch(responseUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(buildErrorResponse(cmdConfig.agent, tickers, error.message))
+      })
+    } catch (e) {
+      console.error('[Slack] Failed to post error:', e)
+    }
+
+    return c.json({ error: error.message }, 500)
+  }
 })
 
 // ── Slack Interactions Handler ──────────────────────────────
-// POST /api/slack/interactions (for button clicks, menus)
 slackRoutes.post('/interactions', async (c) => {
   const rawBody = await c.req.text()
 
@@ -158,11 +222,9 @@ slackRoutes.post('/interactions', async (c) => {
   const form = parseFormBody(rawBody)
   const payload = JSON.parse(form.payload || '{}')
 
-  // Handle button actions
   if (payload.type === 'block_actions') {
     for (const action of payload.actions || []) {
       if (action.action_id === 'run_deeper_analysis') {
-        // TODO: Trigger deeper analysis
         return c.json({ text: 'Deeper analysis triggered. Processing...' })
       }
     }
@@ -177,69 +239,11 @@ slackRoutes.get('/health', (c) => {
     status: 'ok',
     service: 'ekantik-slack',
     commands: ['/material', '/bias', '/mag7', '/score', '/heat', '/watch', '/aomg', '/trend', '/macro', '/doubler'],
-    version: '1.0.0',
+    version: '2.0.0',
   })
 })
 
-// ── Background: Handle Research Commands ───────────────────
-async function handleResearchCommand(
-  apiKey: string,
-  db: D1Database,
-  botToken: string,
-  agentType: string,
-  tickers: string[],
-  rawText: string,
-  responseUrl: string,
-  channelId: string,
-  userName: string
-) {
-  try {
-    console.log(`[Slack] Starting ${agentType} research for ${tickers.join(',')}...`)
-    console.log(`[Slack] API key present: ${!!apiKey}, length: ${apiKey?.length}`)
-    console.log(`[Slack] Response URL: ${responseUrl}`)
-
-    // Call Claude with web search
-    const result = await callClaude(apiKey, agentType, tickers, rawText !== tickers.join(' ') ? rawText : undefined)
-    console.log(`[Slack] Claude returned in ${result.processingTimeMs}ms, tokens: ${result.tokenUsage.input}+${result.tokenUsage.output}`)
-
-    // Persist to D1
-    const reportId = await persistReport(db, agentType, tickers, 'slack', result, channelId)
-    console.log(`[Slack] Report persisted: ${reportId}`)
-
-    // Build Block Kit response
-    const blocks = buildBlockKitResponse(agentType, tickers, result.structured, result.rawMarkdown, reportId, result.costEstimate, result.processingTimeMs)
-
-    // Send response to Slack via response_url
-    const slackResp = await fetch(responseUrl, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        response_type: 'in_channel',
-        replace_original: true,
-        ...blocks
-      })
-    })
-    console.log(`[Slack] Response posted to Slack: ${slackResp.status} ${slackResp.statusText}`)
-    if (!slackResp.ok) {
-      const errText = await slackResp.text()
-      console.error(`[Slack] Slack response_url error: ${errText}`)
-    }
-  } catch (error: any) {
-    console.error('[Slack] Research command failed:', error.message, error.stack)
-    // Send error to Slack
-    try {
-      await fetch(responseUrl, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(buildErrorResponse(agentType, tickers, error.message))
-      })
-    } catch (postError: any) {
-      console.error('[Slack] Failed to post error to Slack:', postError.message)
-    }
-  }
-}
-
-// ── Background: Handle Read-Only Commands ──────────────────
+// ── Handle Read-Only Commands (fast, <1s) ────────────────
 async function handleReadOnlyCommand(
   db: D1Database,
   botToken: string,
