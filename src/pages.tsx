@@ -360,6 +360,10 @@ pageRoutes.get('/journal', (c) => {
             <h1 class="text-2xl font-bold text-white">Trade <span class="text-ekantik-gold italic">Journal</span></h1>
             <p class="text-gray-400 text-sm mt-1">Position tracking, signals, and performance analytics</p>
           </div>
+          <div class="flex gap-3">
+            <button onclick="openAddSignalModal()" class="px-4 py-2 bg-ekantik-amber/20 text-ekantik-amber rounded-lg text-sm font-semibold hover:bg-ekantik-amber/30 transition-colors"><i class="fas fa-signal mr-2"></i>Add Signal</button>
+            <button onclick="openAddPositionModal()" class="px-4 py-2 bg-ekantik-accent text-white rounded-lg text-sm font-semibold hover:bg-ekantik-accent/80 transition-colors"><i class="fas fa-plus mr-2"></i>Add Position</button>
+          </div>
         </div>
         <div id="journal-container">
           <div class="text-center py-12 text-gray-500">
@@ -368,6 +372,93 @@ pageRoutes.get('/journal', (c) => {
           </div>
         </div>
       </div>
+
+      {/* ── Position Modal ── */}
+      <div id="position-modal" class="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 hidden items-center justify-center" onclick="if(event.target===this)closePositionModal()">
+        <div class="bg-ekantik-card border border-ekantik-border rounded-2xl w-full max-w-lg mx-4 max-h-[90vh] overflow-y-auto">
+          <div class="flex items-center justify-between p-5 border-b border-ekantik-border">
+            <h3 id="pos-modal-title" class="text-lg font-bold text-white">Add Position</h3>
+            <button onclick="closePositionModal()" class="text-gray-400 hover:text-white"><i class="fas fa-times"></i></button>
+          </div>
+          <div class="p-5 space-y-4">
+            <input type="hidden" id="pos-edit-id" />
+            <div class="grid grid-cols-2 gap-4">
+              <div><label class="block text-xs text-gray-400 mb-1">Ticker Symbol *</label><input id="pos-symbol" type="text" class="w-full bg-ekantik-bg border border-ekantik-border rounded-lg px-3 py-2 text-white text-sm" placeholder="NVDA" /></div>
+              <div><label class="block text-xs text-gray-400 mb-1">Engine *</label><select id="pos-engine" class="w-full bg-ekantik-bg border border-ekantik-border rounded-lg px-3 py-2 text-white text-sm"><option value="stocks_leaps">Stocks / LEAPS</option><option value="options">Options</option></select></div>
+            </div>
+            <div class="grid grid-cols-2 gap-4">
+              <div><label class="block text-xs text-gray-400 mb-1">Entry Price *</label><input id="pos-entry-price" type="number" step="0.01" class="w-full bg-ekantik-bg border border-ekantik-border rounded-lg px-3 py-2 text-white text-sm" placeholder="135.50" /></div>
+              <div><label class="block text-xs text-gray-400 mb-1">Entry Date *</label><input id="pos-entry-date" type="date" class="w-full bg-ekantik-bg border border-ekantik-border rounded-lg px-3 py-2 text-white text-sm" /></div>
+            </div>
+            <div class="grid grid-cols-3 gap-4">
+              <div><label class="block text-xs text-gray-400 mb-1">Size % *</label><input id="pos-size" type="number" step="0.1" class="w-full bg-ekantik-bg border border-ekantik-border rounded-lg px-3 py-2 text-white text-sm" placeholder="5.0" /></div>
+              <div><label class="block text-xs text-gray-400 mb-1">Stop Price</label><input id="pos-stop" type="number" step="0.01" class="w-full bg-ekantik-bg border border-ekantik-border rounded-lg px-3 py-2 text-white text-sm" placeholder="118.00" /></div>
+              <div><label class="block text-xs text-gray-400 mb-1">Target Price</label><input id="pos-target" type="number" step="0.01" class="w-full bg-ekantik-bg border border-ekantik-border rounded-lg px-3 py-2 text-white text-sm" placeholder="175.00" /></div>
+            </div>
+            <div><label class="block text-xs text-gray-400 mb-1">Thesis</label><textarea id="pos-thesis" rows={2} class="w-full bg-ekantik-bg border border-ekantik-border rounded-lg px-3 py-2 text-white text-sm" placeholder="Breakout above 200-day MA on volume..."></textarea></div>
+          </div>
+          <div class="p-5 border-t border-ekantik-border flex justify-end gap-3">
+            <button onclick="closePositionModal()" class="px-4 py-2 bg-ekantik-bg text-gray-400 rounded-lg text-sm hover:text-white">Cancel</button>
+            <button onclick="savePosition()" id="pos-save-btn" class="px-5 py-2 bg-ekantik-accent text-white rounded-lg text-sm font-semibold hover:bg-ekantik-accent/80">Save Position</button>
+          </div>
+        </div>
+      </div>
+
+      {/* ── Close Position Modal ── */}
+      <div id="close-modal" class="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 hidden items-center justify-center" onclick="if(event.target===this)closeCloseModal()">
+        <div class="bg-ekantik-card border border-ekantik-border rounded-2xl w-full max-w-md mx-4">
+          <div class="flex items-center justify-between p-5 border-b border-ekantik-border">
+            <h3 class="text-lg font-bold text-white">Close Position — <span id="close-symbol" class="text-ekantik-gold"></span></h3>
+            <button onclick="closeCloseModal()" class="text-gray-400 hover:text-white"><i class="fas fa-times"></i></button>
+          </div>
+          <div class="p-5 space-y-4">
+            <input type="hidden" id="close-pos-id" />
+            <div><label class="block text-xs text-gray-400 mb-1">Exit Price *</label><input id="close-exit-price" type="number" step="0.01" class="w-full bg-ekantik-bg border border-ekantik-border rounded-lg px-3 py-2 text-white text-sm" /></div>
+            <div><label class="block text-xs text-gray-400 mb-1">Exit Reason</label><select id="close-reason" class="w-full bg-ekantik-bg border border-ekantik-border rounded-lg px-3 py-2 text-white text-sm"><option value="manual_close">Manual Close</option><option value="target_hit">Target Hit</option><option value="stopped_out">Stopped Out</option><option value="thesis_invalidated">Thesis Invalidated</option><option value="rebalance">Rebalance</option></select></div>
+          </div>
+          <div class="p-5 border-t border-ekantik-border flex justify-end gap-3">
+            <button onclick="closeCloseModal()" class="px-4 py-2 bg-ekantik-bg text-gray-400 rounded-lg text-sm hover:text-white">Cancel</button>
+            <button onclick="submitClosePosition()" class="px-5 py-2 bg-ekantik-red text-white rounded-lg text-sm font-semibold hover:bg-ekantik-red/80">Close Position</button>
+          </div>
+        </div>
+      </div>
+
+      {/* ── Signal Modal ── */}
+      <div id="signal-modal" class="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 hidden items-center justify-center" onclick="if(event.target===this)closeSignalModal()">
+        <div class="bg-ekantik-card border border-ekantik-border rounded-2xl w-full max-w-lg mx-4 max-h-[90vh] overflow-y-auto">
+          <div class="flex items-center justify-between p-5 border-b border-ekantik-border">
+            <h3 id="sig-modal-title" class="text-lg font-bold text-white">Add Signal</h3>
+            <button onclick="closeSignalModal()" class="text-gray-400 hover:text-white"><i class="fas fa-times"></i></button>
+          </div>
+          <div class="p-5 space-y-4">
+            <input type="hidden" id="sig-edit-id" />
+            <div class="grid grid-cols-2 gap-4">
+              <div><label class="block text-xs text-gray-400 mb-1">Ticker Symbol *</label><input id="sig-symbol" type="text" class="w-full bg-ekantik-bg border border-ekantik-border rounded-lg px-3 py-2 text-white text-sm" placeholder="NVDA" /></div>
+              <div><label class="block text-xs text-gray-400 mb-1">Signal Type *</label><select id="sig-type" class="w-full bg-ekantik-bg border border-ekantik-border rounded-lg px-3 py-2 text-white text-sm"><option value="breakout">Breakout</option><option value="dislocation">Dislocation</option><option value="reversal">Reversal</option><option value="consolidation">Consolidation</option><option value="episodic_pivot">Episodic Pivot</option></select></div>
+            </div>
+            <div class="grid grid-cols-2 gap-4">
+              <div><label class="block text-xs text-gray-400 mb-1">Engine *</label><select id="sig-engine" class="w-full bg-ekantik-bg border border-ekantik-border rounded-lg px-3 py-2 text-white text-sm"><option value="stocks_leaps">Stocks / LEAPS</option><option value="options">Options</option></select></div>
+              <div><label class="block text-xs text-gray-400 mb-1">Confidence (1-10)</label><input id="sig-confidence" type="number" step="0.1" min="1" max="10" class="w-full bg-ekantik-bg border border-ekantik-border rounded-lg px-3 py-2 text-white text-sm" placeholder="7.5" /></div>
+            </div>
+            <div class="grid grid-cols-3 gap-4">
+              <div><label class="block text-xs text-gray-400 mb-1">Entry Price</label><input id="sig-entry" type="number" step="0.01" class="w-full bg-ekantik-bg border border-ekantik-border rounded-lg px-3 py-2 text-white text-sm" /></div>
+              <div><label class="block text-xs text-gray-400 mb-1">Stop Price</label><input id="sig-stop" type="number" step="0.01" class="w-full bg-ekantik-bg border border-ekantik-border rounded-lg px-3 py-2 text-white text-sm" /></div>
+              <div><label class="block text-xs text-gray-400 mb-1">Target Price</label><input id="sig-target" type="number" step="0.01" class="w-full bg-ekantik-bg border border-ekantik-border rounded-lg px-3 py-2 text-white text-sm" /></div>
+            </div>
+            <div class="grid grid-cols-2 gap-4">
+              <div><label class="block text-xs text-gray-400 mb-1">Position Size %</label><input id="sig-size" type="number" step="0.1" class="w-full bg-ekantik-bg border border-ekantik-border rounded-lg px-3 py-2 text-white text-sm" placeholder="5.0" /></div>
+              <div><label class="block text-xs text-gray-400 mb-1">Time Horizon</label><input id="sig-horizon" type="text" class="w-full bg-ekantik-bg border border-ekantik-border rounded-lg px-3 py-2 text-white text-sm" placeholder="2-4 weeks" /></div>
+            </div>
+            <div><label class="block text-xs text-gray-400 mb-1">Thesis</label><textarea id="sig-thesis" rows={2} class="w-full bg-ekantik-bg border border-ekantik-border rounded-lg px-3 py-2 text-white text-sm" placeholder="Signal thesis..."></textarea></div>
+            <div><label class="block text-xs text-gray-400 mb-1">Invalidation Criteria</label><input id="sig-invalidation" type="text" class="w-full bg-ekantik-bg border border-ekantik-border rounded-lg px-3 py-2 text-white text-sm" placeholder="Break below 200-day MA" /></div>
+          </div>
+          <div class="p-5 border-t border-ekantik-border flex justify-end gap-3">
+            <button onclick="closeSignalModal()" class="px-4 py-2 bg-ekantik-bg text-gray-400 rounded-lg text-sm hover:text-white">Cancel</button>
+            <button onclick="saveSignal()" id="sig-save-btn" class="px-5 py-2 bg-ekantik-amber text-black rounded-lg text-sm font-semibold hover:bg-ekantik-amber/80">Save Signal</button>
+          </div>
+        </div>
+      </div>
+
       <script dangerouslySetInnerHTML={{ __html: journalScript }} />
     </Layout>,
     { title: 'Trade Journal — Ekantik Capital' }
@@ -1307,87 +1398,350 @@ async function submitObservation() {
 `
 
 const journalScript = `
-(async () => {
+let _positions = [];
+let _signals = [];
+
+// ── Load Data ──
+async function loadJournal() {
   try {
     const res = await fetch('/api/journal');
-    const { positions, signals } = await res.json();
-    const container = document.getElementById('journal-container');
-
-    // Separate open and closed
-    const openPos = positions.filter(p => p.status === 'open');
-    const closedPos = positions.filter(p => p.status !== 'open');
-
-    container.innerHTML =
-      // Active positions
-      '<div class="mb-8">' +
-        '<h3 class="text-lg font-semibold text-white mb-4"><i class="fas fa-chart-line mr-2 text-ekantik-green"></i>Open Positions (' + openPos.length + ')</h3>' +
-        (openPos.length > 0 ?
-          '<div class="bg-ekantik-card border border-ekantik-border rounded-xl overflow-hidden">' +
-            '<table class="w-full"><thead><tr class="border-b border-ekantik-border">' +
-              '<th class="text-left px-5 py-2.5 text-[10px] text-gray-500 uppercase">Ticker</th>' +
-              '<th class="text-center px-5 py-2.5 text-[10px] text-gray-500 uppercase">Engine</th>' +
-              '<th class="text-right px-5 py-2.5 text-[10px] text-gray-500 uppercase">Entry</th>' +
-              '<th class="text-left px-5 py-2.5 text-[10px] text-gray-500 uppercase">Entry Date</th>' +
-              '<th class="text-right px-5 py-2.5 text-[10px] text-gray-500 uppercase">Current</th>' +
-              '<th class="text-right px-5 py-2.5 text-[10px] text-gray-500 uppercase">P&L%</th>' +
-              '<th class="text-right px-5 py-2.5 text-[10px] text-gray-500 uppercase">P&L $</th>' +
-              '<th class="text-right px-5 py-2.5 text-[10px] text-gray-500 uppercase">R-Mult</th>' +
-              '<th class="text-left px-5 py-2.5 text-[10px] text-gray-500 uppercase">Thesis</th>' +
-            '</tr></thead><tbody>' +
-            openPos.map(p => {
-              const pnlColor = (p.pnl_pct||0) >= 0 ? 'text-ekantik-green' : 'text-ekantik-red';
-              const engColor = p.engine === 'stocks_leaps' ? 'bg-ekantik-accent/20 text-ekantik-accent' : 'bg-purple-500/20 text-purple-400';
-              return '<tr class="border-b border-ekantik-border/30 hover:bg-ekantik-surface/20">' +
-                '<td class="px-5 py-3 font-mono font-bold text-white">' + p.symbol + '</td>' +
-                '<td class="px-5 py-3 text-center"><span class="px-2 py-0.5 rounded text-[10px] font-semibold ' + engColor + '">' + (p.engine==='stocks_leaps'?'Stocks':'Options') + '</span></td>' +
-                '<td class="px-5 py-3 text-right text-gray-300 text-sm">$' + (p.entry_price||0).toFixed(2) + '</td>' +
-                '<td class="px-5 py-3 text-gray-400 text-sm">' + (p.entry_date||'') + '</td>' +
-                '<td class="px-5 py-3 text-right text-white font-semibold text-sm">$' + (p.current_price||0).toFixed(2) + '</td>' +
-                '<td class="px-5 py-3 text-right font-semibold text-sm ' + pnlColor + '">' + ((p.pnl_pct||0)>=0?'+':'') + (p.pnl_pct||0).toFixed(2) + '%</td>' +
-                '<td class="px-5 py-3 text-right font-semibold text-sm ' + pnlColor + '">' + ((p.pnl_usd||0)>=0?'+$':'-$') + Math.abs(p.pnl_usd||0).toFixed(0) + '</td>' +
-                '<td class="px-5 py-3 text-right text-gray-300 text-sm">' + (p.r_multiple||0).toFixed(2) + 'R</td>' +
-                '<td class="px-5 py-3 text-gray-400 text-xs max-w-xs truncate">' + (p.thesis||'—') + '</td>' +
-              '</tr>';
-            }).join('') +
-            '</tbody></table></div>'
-        : '<div class="text-center py-8 text-gray-500 bg-ekantik-card border border-ekantik-border rounded-xl">No open positions</div>') +
-      '</div>' +
-
-      // Active signals
-      '<div class="mb-8">' +
-        '<h3 class="text-lg font-semibold text-white mb-4"><i class="fas fa-signal mr-2 text-ekantik-amber"></i>Active Trade Signals</h3>' +
-        (signals.length > 0 ?
-          '<div class="grid grid-cols-1 lg:grid-cols-2 gap-4">' +
-          signals.filter(s => s.is_active).map(s => {
-            const sigColors = { breakout: 'text-ekantik-green border-ekantik-green', dislocation: 'text-ekantik-red border-red-500', reversal: 'text-ekantik-amber border-amber-500', consolidation: 'text-gray-400 border-gray-500', episodic_pivot: 'text-purple-400 border-purple-500' };
-            const col = sigColors[s.signal_type] || 'text-gray-400 border-gray-500';
-            return '<div class="bg-ekantik-card border border-ekantik-border rounded-xl p-4">' +
-              '<div class="flex items-center justify-between mb-2">' +
-                '<div class="flex items-center gap-2">' +
-                  '<span class="font-mono font-bold text-white text-lg">' + s.symbol + '</span>' +
-                  '<span class="px-2 py-0.5 rounded border text-[10px] font-bold uppercase ' + col + '">' + s.signal_type.replace('_',' ') + '</span>' +
-                '</div>' +
-                '<span class="text-ekantik-gold font-bold">' + (s.confidence||0).toFixed(1) + '/10</span>' +
-              '</div>' +
-              '<div class="grid grid-cols-3 gap-3 text-xs mb-2">' +
-                '<div class="bg-ekantik-bg rounded px-2 py-1.5"><span class="text-gray-500 block">Entry</span><span class="text-white font-semibold">' + (s.entry_price?'$'+s.entry_price.toFixed(2):'—') + '</span></div>' +
-                '<div class="bg-ekantik-bg rounded px-2 py-1.5"><span class="text-gray-500 block">Stop</span><span class="text-ekantik-red font-semibold">' + (s.stop_price?'$'+s.stop_price.toFixed(2):'—') + '</span></div>' +
-                '<div class="bg-ekantik-bg rounded px-2 py-1.5"><span class="text-gray-500 block">Target</span><span class="text-ekantik-green font-semibold">' + (s.target_price?'$'+s.target_price.toFixed(2):'—') + '</span></div>' +
-              '</div>' +
-              (s.thesis ? '<p class="text-gray-400 text-xs">' + s.thesis + '</p>' : '') +
-            '</div>';
-          }).join('') + '</div>'
-        : '<div class="text-center py-8 text-gray-500 bg-ekantik-card border border-ekantik-border rounded-xl">No active signals</div>') +
-      '</div>' +
-
-      // Closed trades  
-      (closedPos.length > 0 ?
-        '<div>' +
-          '<h3 class="text-lg font-semibold text-white mb-4"><i class="fas fa-check-circle mr-2 text-gray-400"></i>Closed Trades (' + closedPos.length + ')</h3>' +
-          '<div class="bg-ekantik-card border border-ekantik-border rounded-xl p-5 text-center text-gray-500 text-sm">Trade history will appear here when positions are closed.</div>' +
-        '</div>'
-      : '');
-
+    const data = await res.json();
+    _positions = data.positions || [];
+    _signals = data.signals || [];
+    renderJournal();
   } catch(e) { console.error('Journal load failed', e); }
-})();
+}
+
+function renderJournal() {
+  const container = document.getElementById('journal-container');
+  const openPos = _positions.filter(p => p.status === 'open');
+  const closedPos = _positions.filter(p => p.status !== 'open');
+  const activeSignals = _signals.filter(s => s.is_active);
+  const inactiveSignals = _signals.filter(s => !s.is_active);
+
+  container.innerHTML =
+    // ── Open Positions ──
+    '<div class="mb-8">' +
+      '<h3 class="text-lg font-semibold text-white mb-4"><i class="fas fa-chart-line mr-2 text-ekantik-green"></i>Open Positions (' + openPos.length + ')</h3>' +
+      (openPos.length > 0 ?
+        '<div class="bg-ekantik-card border border-ekantik-border rounded-xl overflow-hidden">' +
+          '<table class="w-full"><thead><tr class="border-b border-ekantik-border">' +
+            '<th class="text-left px-4 py-2.5 text-[10px] text-gray-500 uppercase">Ticker</th>' +
+            '<th class="text-center px-3 py-2.5 text-[10px] text-gray-500 uppercase">Engine</th>' +
+            '<th class="text-right px-3 py-2.5 text-[10px] text-gray-500 uppercase">Entry</th>' +
+            '<th class="text-left px-3 py-2.5 text-[10px] text-gray-500 uppercase">Date</th>' +
+            '<th class="text-right px-3 py-2.5 text-[10px] text-gray-500 uppercase">Current</th>' +
+            '<th class="text-right px-3 py-2.5 text-[10px] text-gray-500 uppercase">P&L%</th>' +
+            '<th class="text-right px-3 py-2.5 text-[10px] text-gray-500 uppercase">Size%</th>' +
+            '<th class="text-right px-3 py-2.5 text-[10px] text-gray-500 uppercase">Heat</th>' +
+            '<th class="text-left px-3 py-2.5 text-[10px] text-gray-500 uppercase">Thesis</th>' +
+            '<th class="text-center px-3 py-2.5 text-[10px] text-gray-500 uppercase">Actions</th>' +
+          '</tr></thead><tbody>' +
+          openPos.map(p => {
+            const pnlColor = (p.pnl_pct||0) >= 0 ? 'text-ekantik-green' : 'text-ekantik-red';
+            const engColor = p.engine === 'stocks_leaps' ? 'bg-ekantik-accent/20 text-ekantik-accent' : 'bg-purple-500/20 text-purple-400';
+            return '<tr class="border-b border-ekantik-border/30 hover:bg-ekantik-surface/20 group">' +
+              '<td class="px-4 py-3 font-mono font-bold text-white">' + p.symbol + '</td>' +
+              '<td class="px-3 py-3 text-center"><span class="px-2 py-0.5 rounded text-[10px] font-semibold ' + engColor + '">' + (p.engine==='stocks_leaps'?'Stocks':'Options') + '</span></td>' +
+              '<td class="px-3 py-3 text-right text-gray-300 text-sm">$' + (p.entry_price||0).toFixed(2) + '</td>' +
+              '<td class="px-3 py-3 text-gray-400 text-sm">' + (p.entry_date||'').substring(0,10) + '</td>' +
+              '<td class="px-3 py-3 text-right text-white font-semibold text-sm">$' + (p.current_price||0).toFixed(2) + '</td>' +
+              '<td class="px-3 py-3 text-right font-semibold text-sm ' + pnlColor + '">' + ((p.pnl_pct||0)>=0?'+':'') + (p.pnl_pct||0).toFixed(2) + '%</td>' +
+              '<td class="px-3 py-3 text-right text-gray-300 text-sm">' + (p.size_pct||0).toFixed(1) + '%</td>' +
+              '<td class="px-3 py-3 text-right text-ekantik-amber text-sm">' + (p.heat_contribution||0).toFixed(2) + '%</td>' +
+              '<td class="px-3 py-3 text-gray-400 text-xs max-w-[180px] truncate" title="' + (p.thesis||'').replace(/"/g,'&quot;') + '">' + (p.thesis||'—') + '</td>' +
+              '<td class="px-3 py-3 text-center whitespace-nowrap">' +
+                '<button onclick="editPosition(\\'' + p.id + '\\')" class="text-gray-500 hover:text-ekantik-accent text-xs px-1" title="Edit"><i class="fas fa-pen"></i></button>' +
+                '<button onclick="openClosePositionModal(\\'' + p.id + '\\', \\'' + p.symbol + '\\', ' + (p.current_price||0) + ')" class="text-gray-500 hover:text-ekantik-red text-xs px-1 ml-1" title="Close"><i class="fas fa-times-circle"></i></button>' +
+                '<button onclick="deletePosition(\\'' + p.id + '\\', \\'' + p.symbol + '\\')" class="text-gray-500 hover:text-red-400 text-xs px-1 ml-1" title="Delete"><i class="fas fa-trash"></i></button>' +
+              '</td>' +
+            '</tr>';
+          }).join('') +
+          '</tbody></table></div>'
+      : '<div class="text-center py-8 text-gray-500 bg-ekantik-card border border-ekantik-border rounded-xl">No open positions — click <b>Add Position</b> to start tracking.</div>') +
+    '</div>' +
+
+    // ── Active Signals ──
+    '<div class="mb-8">' +
+      '<h3 class="text-lg font-semibold text-white mb-4"><i class="fas fa-signal mr-2 text-ekantik-amber"></i>Active Signals (' + activeSignals.length + ')</h3>' +
+      (activeSignals.length > 0 ?
+        '<div class="grid grid-cols-1 lg:grid-cols-2 gap-4">' +
+        activeSignals.map(s => {
+          const sigColors = { breakout: 'text-ekantik-green border-ekantik-green/50', dislocation: 'text-ekantik-red border-red-500/50', reversal: 'text-ekantik-amber border-amber-500/50', consolidation: 'text-gray-400 border-gray-500/50', episodic_pivot: 'text-purple-400 border-purple-500/50' };
+          const col = sigColors[s.signal_type] || 'text-gray-400 border-gray-500/50';
+          const rr = s.risk_reward_ratio ? s.risk_reward_ratio.toFixed(1) + ':1' : '—';
+          return '<div class="bg-ekantik-card border border-ekantik-border rounded-xl p-4 group">' +
+            '<div class="flex items-center justify-between mb-2">' +
+              '<div class="flex items-center gap-2">' +
+                '<span class="font-mono font-bold text-white text-lg">' + s.symbol + '</span>' +
+                '<span class="px-2 py-0.5 rounded border text-[10px] font-bold uppercase ' + col + '">' + s.signal_type.replace('_',' ') + '</span>' +
+                '<span class="px-2 py-0.5 rounded text-[10px] font-semibold ' + (s.engine==='stocks_leaps'?'bg-ekantik-accent/20 text-ekantik-accent':'bg-purple-500/20 text-purple-400') + '">' + (s.engine==='stocks_leaps'?'Stocks':'Options') + '</span>' +
+              '</div>' +
+              '<div class="flex items-center gap-2">' +
+                '<span class="text-ekantik-gold font-bold text-sm">' + (s.confidence||0).toFixed(1) + '/10</span>' +
+                '<button onclick="editSignal(\\'' + s.id + '\\')" class="text-gray-500 hover:text-ekantik-accent text-xs" title="Edit"><i class="fas fa-pen"></i></button>' +
+                '<button onclick="deactivateSignal(\\'' + s.id + '\\', \\'' + s.symbol + '\\')" class="text-gray-500 hover:text-ekantik-red text-xs" title="Deactivate"><i class="fas fa-ban"></i></button>' +
+              '</div>' +
+            '</div>' +
+            '<div class="grid grid-cols-4 gap-2 text-xs mb-2">' +
+              '<div class="bg-ekantik-bg rounded px-2 py-1.5"><span class="text-gray-500 block">Entry</span><span class="text-white font-semibold">' + (s.entry_price?'$'+s.entry_price.toFixed(2):'—') + '</span></div>' +
+              '<div class="bg-ekantik-bg rounded px-2 py-1.5"><span class="text-gray-500 block">Stop</span><span class="text-ekantik-red font-semibold">' + (s.stop_price?'$'+s.stop_price.toFixed(2):'—') + '</span></div>' +
+              '<div class="bg-ekantik-bg rounded px-2 py-1.5"><span class="text-gray-500 block">Target</span><span class="text-ekantik-green font-semibold">' + (s.target_price?'$'+s.target_price.toFixed(2):'—') + '</span></div>' +
+              '<div class="bg-ekantik-bg rounded px-2 py-1.5"><span class="text-gray-500 block">R:R</span><span class="text-white font-semibold">' + rr + '</span></div>' +
+            '</div>' +
+            (s.thesis ? '<p class="text-gray-400 text-xs mb-1">' + s.thesis + '</p>' : '') +
+            (s.time_horizon ? '<span class="text-[10px] text-gray-500"><i class="fas fa-clock mr-1"></i>' + s.time_horizon + '</span>' : '') +
+          '</div>';
+        }).join('') + '</div>'
+      : '<div class="text-center py-8 text-gray-500 bg-ekantik-card border border-ekantik-border rounded-xl">No active signals — click <b>Add Signal</b> to create one.</div>') +
+    '</div>' +
+
+    // ── Closed Trades ──
+    (closedPos.length > 0 ?
+      '<div class="mb-8">' +
+        '<h3 class="text-lg font-semibold text-white mb-4"><i class="fas fa-check-circle mr-2 text-gray-400"></i>Closed Trades (' + closedPos.length + ')</h3>' +
+        '<div class="bg-ekantik-card border border-ekantik-border rounded-xl overflow-hidden">' +
+          '<table class="w-full"><thead><tr class="border-b border-ekantik-border">' +
+            '<th class="text-left px-4 py-2 text-[10px] text-gray-500 uppercase">Ticker</th>' +
+            '<th class="text-right px-3 py-2 text-[10px] text-gray-500 uppercase">Entry</th>' +
+            '<th class="text-right px-3 py-2 text-[10px] text-gray-500 uppercase">Exit</th>' +
+            '<th class="text-right px-3 py-2 text-[10px] text-gray-500 uppercase">P&L%</th>' +
+            '<th class="text-left px-3 py-2 text-[10px] text-gray-500 uppercase">Reason</th>' +
+            '<th class="text-left px-3 py-2 text-[10px] text-gray-500 uppercase">Date</th>' +
+          '</tr></thead><tbody>' +
+          closedPos.map(p => {
+            const pnlColor = (p.pnl_pct||0) >= 0 ? 'text-ekantik-green' : 'text-ekantik-red';
+            return '<tr class="border-b border-ekantik-border/30">' +
+              '<td class="px-4 py-2.5 font-mono font-bold text-gray-400">' + p.symbol + '</td>' +
+              '<td class="px-3 py-2.5 text-right text-gray-500 text-sm">$' + (p.entry_price||0).toFixed(2) + '</td>' +
+              '<td class="px-3 py-2.5 text-right text-gray-300 text-sm">$' + (p.exit_price||0).toFixed(2) + '</td>' +
+              '<td class="px-3 py-2.5 text-right font-semibold text-sm ' + pnlColor + '">' + ((p.pnl_pct||0)>=0?'+':'') + (p.pnl_pct||0).toFixed(2) + '%</td>' +
+              '<td class="px-3 py-2.5 text-gray-500 text-xs">' + (p.exit_reason||'closed').replace(/_/g, ' ') + '</td>' +
+              '<td class="px-3 py-2.5 text-gray-500 text-xs">' + (p.exit_date||'').substring(0,10) + '</td>' +
+            '</tr>';
+          }).join('') +
+          '</tbody></table></div>' +
+      '</div>'
+    : '') +
+
+    // ── Inactive Signals ──
+    (inactiveSignals.length > 0 ?
+      '<div>' +
+        '<h3 class="text-lg font-semibold text-white mb-4"><i class="fas fa-ban mr-2 text-gray-500"></i>Inactive Signals (' + inactiveSignals.length + ')</h3>' +
+        '<div class="bg-ekantik-card border border-ekantik-border rounded-xl p-4">' +
+          '<div class="flex flex-wrap gap-3">' +
+          inactiveSignals.map(s =>
+            '<span class="px-3 py-1 rounded-full bg-ekantik-bg text-gray-500 text-xs">' + s.symbol + ' — ' + s.signal_type.replace('_',' ') +
+            ' <button onclick="deleteSignal(\\'' + s.id + '\\')" class="ml-1 hover:text-red-400"><i class="fas fa-trash text-[10px]"></i></button></span>'
+          ).join('') +
+          '</div>' +
+        '</div>' +
+      '</div>'
+    : '');
+}
+
+// ── Position CRUD ──
+function openAddPositionModal() {
+  document.getElementById('pos-modal-title').textContent = 'Add Position';
+  document.getElementById('pos-edit-id').value = '';
+  document.getElementById('pos-symbol').value = '';
+  document.getElementById('pos-symbol').disabled = false;
+  document.getElementById('pos-engine').value = 'stocks_leaps';
+  document.getElementById('pos-entry-price').value = '';
+  document.getElementById('pos-entry-date').value = new Date().toISOString().split('T')[0];
+  document.getElementById('pos-size').value = '';
+  document.getElementById('pos-stop').value = '';
+  document.getElementById('pos-target').value = '';
+  document.getElementById('pos-thesis').value = '';
+  document.getElementById('pos-save-btn').textContent = 'Add Position';
+  document.getElementById('position-modal').classList.remove('hidden');
+  document.getElementById('position-modal').classList.add('flex');
+}
+
+function editPosition(id) {
+  const p = _positions.find(x => x.id === id);
+  if (!p) return;
+  document.getElementById('pos-modal-title').textContent = 'Edit Position — ' + p.symbol;
+  document.getElementById('pos-edit-id').value = p.id;
+  document.getElementById('pos-symbol').value = p.symbol;
+  document.getElementById('pos-symbol').disabled = true;
+  document.getElementById('pos-engine').value = p.engine;
+  document.getElementById('pos-entry-price').value = p.entry_price;
+  document.getElementById('pos-entry-date').value = (p.entry_date||'').substring(0,10);
+  document.getElementById('pos-size').value = p.size_pct;
+  document.getElementById('pos-stop').value = p.stop_price || '';
+  document.getElementById('pos-target').value = p.target_price || '';
+  document.getElementById('pos-thesis').value = p.thesis || '';
+  document.getElementById('pos-save-btn').textContent = 'Save Changes';
+  document.getElementById('position-modal').classList.remove('hidden');
+  document.getElementById('position-modal').classList.add('flex');
+}
+
+function closePositionModal() {
+  document.getElementById('position-modal').classList.add('hidden');
+  document.getElementById('position-modal').classList.remove('flex');
+}
+
+async function savePosition() {
+  const editId = document.getElementById('pos-edit-id').value;
+  const payload = {
+    symbol: document.getElementById('pos-symbol').value.trim().toUpperCase(),
+    engine: document.getElementById('pos-engine').value,
+    entry_price: parseFloat(document.getElementById('pos-entry-price').value),
+    entry_date: document.getElementById('pos-entry-date').value,
+    size_pct: parseFloat(document.getElementById('pos-size').value),
+    stop_price: parseFloat(document.getElementById('pos-stop').value) || null,
+    target_price: parseFloat(document.getElementById('pos-target').value) || null,
+    thesis: document.getElementById('pos-thesis').value.trim() || null,
+  };
+  if (!payload.symbol || !payload.entry_price || !payload.entry_date || !payload.size_pct) {
+    alert('Please fill in required fields (symbol, entry price, date, size %)');
+    return;
+  }
+  try {
+    const url = editId ? '/api/journal/positions/' + editId : '/api/journal/positions';
+    const method = editId ? 'PUT' : 'POST';
+    const res = await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+    const data = await res.json();
+    if (!res.ok) { alert(data.error || 'Failed to save'); return; }
+    closePositionModal();
+    loadJournal();
+  } catch(e) { alert('Error: ' + e.message); }
+}
+
+function openClosePositionModal(id, symbol, currentPrice) {
+  document.getElementById('close-pos-id').value = id;
+  document.getElementById('close-symbol').textContent = symbol;
+  document.getElementById('close-exit-price').value = currentPrice || '';
+  document.getElementById('close-reason').value = 'manual_close';
+  document.getElementById('close-modal').classList.remove('hidden');
+  document.getElementById('close-modal').classList.add('flex');
+}
+
+function closeCloseModal() {
+  document.getElementById('close-modal').classList.add('hidden');
+  document.getElementById('close-modal').classList.remove('flex');
+}
+
+async function submitClosePosition() {
+  const id = document.getElementById('close-pos-id').value;
+  const exit_price = parseFloat(document.getElementById('close-exit-price').value);
+  const exit_reason = document.getElementById('close-reason').value;
+  if (!exit_price) { alert('Enter exit price'); return; }
+  try {
+    const res = await fetch('/api/journal/positions/' + id + '/close', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ exit_price, exit_reason })
+    });
+    const data = await res.json();
+    if (!res.ok) { alert(data.error || 'Failed'); return; }
+    closeCloseModal();
+    loadJournal();
+  } catch(e) { alert('Error: ' + e.message); }
+}
+
+async function deletePosition(id, symbol) {
+  if (!confirm('Delete ' + symbol + ' position permanently? This cannot be undone.')) return;
+  try {
+    await fetch('/api/journal/positions/' + id, { method: 'DELETE' });
+    loadJournal();
+  } catch(e) { alert('Error: ' + e.message); }
+}
+
+// ── Signal CRUD ──
+function openAddSignalModal() {
+  document.getElementById('sig-modal-title').textContent = 'Add Signal';
+  document.getElementById('sig-edit-id').value = '';
+  document.getElementById('sig-symbol').value = '';
+  document.getElementById('sig-symbol').disabled = false;
+  document.getElementById('sig-type').value = 'breakout';
+  document.getElementById('sig-engine').value = 'stocks_leaps';
+  document.getElementById('sig-confidence').value = '';
+  document.getElementById('sig-entry').value = '';
+  document.getElementById('sig-stop').value = '';
+  document.getElementById('sig-target').value = '';
+  document.getElementById('sig-size').value = '';
+  document.getElementById('sig-horizon').value = '';
+  document.getElementById('sig-thesis').value = '';
+  document.getElementById('sig-invalidation').value = '';
+  document.getElementById('sig-save-btn').textContent = 'Add Signal';
+  document.getElementById('signal-modal').classList.remove('hidden');
+  document.getElementById('signal-modal').classList.add('flex');
+}
+
+function editSignal(id) {
+  const s = _signals.find(x => x.id === id);
+  if (!s) return;
+  document.getElementById('sig-modal-title').textContent = 'Edit Signal — ' + s.symbol;
+  document.getElementById('sig-edit-id').value = s.id;
+  document.getElementById('sig-symbol').value = s.symbol;
+  document.getElementById('sig-symbol').disabled = true;
+  document.getElementById('sig-type').value = s.signal_type;
+  document.getElementById('sig-engine').value = s.engine;
+  document.getElementById('sig-confidence').value = s.confidence || '';
+  document.getElementById('sig-entry').value = s.entry_price || '';
+  document.getElementById('sig-stop').value = s.stop_price || '';
+  document.getElementById('sig-target').value = s.target_price || '';
+  document.getElementById('sig-size').value = s.position_size_pct || '';
+  document.getElementById('sig-horizon').value = s.time_horizon || '';
+  document.getElementById('sig-thesis').value = s.thesis || '';
+  document.getElementById('sig-invalidation').value = s.invalidation_criteria || '';
+  document.getElementById('sig-save-btn').textContent = 'Save Changes';
+  document.getElementById('signal-modal').classList.remove('hidden');
+  document.getElementById('signal-modal').classList.add('flex');
+}
+
+function closeSignalModal() {
+  document.getElementById('signal-modal').classList.add('hidden');
+  document.getElementById('signal-modal').classList.remove('flex');
+}
+
+async function saveSignal() {
+  const editId = document.getElementById('sig-edit-id').value;
+  const payload = {
+    symbol: document.getElementById('sig-symbol').value.trim().toUpperCase(),
+    signal_type: document.getElementById('sig-type').value,
+    engine: document.getElementById('sig-engine').value,
+    confidence: parseFloat(document.getElementById('sig-confidence').value) || null,
+    entry_price: parseFloat(document.getElementById('sig-entry').value) || null,
+    stop_price: parseFloat(document.getElementById('sig-stop').value) || null,
+    target_price: parseFloat(document.getElementById('sig-target').value) || null,
+    position_size_pct: parseFloat(document.getElementById('sig-size').value) || null,
+    time_horizon: document.getElementById('sig-horizon').value.trim() || null,
+    thesis: document.getElementById('sig-thesis').value.trim() || null,
+    invalidation_criteria: document.getElementById('sig-invalidation').value.trim() || null,
+  };
+  if (!payload.symbol || !payload.signal_type || !payload.engine) {
+    alert('Please fill in required fields (symbol, signal type, engine)');
+    return;
+  }
+  try {
+    const url = editId ? '/api/journal/signals/' + editId : '/api/journal/signals';
+    const method = editId ? 'PUT' : 'POST';
+    const res = await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+    const data = await res.json();
+    if (!res.ok) { alert(data.error || 'Failed to save'); return; }
+    closeSignalModal();
+    loadJournal();
+  } catch(e) { alert('Error: ' + e.message); }
+}
+
+async function deactivateSignal(id, symbol) {
+  if (!confirm('Deactivate ' + symbol + ' signal?')) return;
+  try {
+    await fetch('/api/journal/signals/' + id + '/deactivate', { method: 'POST' });
+    loadJournal();
+  } catch(e) { alert('Error: ' + e.message); }
+}
+
+async function deleteSignal(id) {
+  if (!confirm('Delete this signal permanently?')) return;
+  try {
+    await fetch('/api/journal/signals/' + id, { method: 'DELETE' });
+    loadJournal();
+  } catch(e) { alert('Error: ' + e.message); }
+}
+
+// ── Init ──
+loadJournal();
 `
