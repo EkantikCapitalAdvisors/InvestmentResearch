@@ -16,6 +16,7 @@ const AGENT_LABELS: Record<string, string> = {
   hot_macro: 'Hot Macro Events',
   doubler: 'Doubling Potential Analysis',
   aomg_scanner: 'AOMG Growth Scanner',
+  social_sentiment: 'Social Sentiment Scanner',
 }
 
 const AGENT_EMOJI: Record<string, string> = {
@@ -27,6 +28,7 @@ const AGENT_EMOJI: Record<string, string> = {
   hot_macro: ':globe_with_meridians:',
   doubler: ':rocket:',
   aomg_scanner: ':dart:',
+  social_sentiment: ':speech_balloon:',
 }
 
 const IMPACT_EMOJI: Record<string, string> = {

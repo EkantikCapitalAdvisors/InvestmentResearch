@@ -28,6 +28,7 @@ pageRoutes.get('/', (c) => {
               <option value="hot_macro">Hot Macro</option>
               <option value="doubler">Doubler</option>
               <option value="ai_scorer">AI Scorer</option>
+              <option value="social_sentiment">Social Sentiment</option>
             </select>
             <select id="filter-impact" class="bg-ekantik-bg border border-ekantik-border rounded-lg px-3 py-2 text-sm text-gray-300 focus:outline-none focus:border-ekantik-gold/50">
               <option value="">All Impact</option>
@@ -59,6 +60,7 @@ pageRoutes.get('/', (c) => {
                   <option value="hot_micro">Hot Micro Trend Pipeline</option>
                   <option value="hot_macro">Hot Macro Events</option>
                   <option value="doubler">Doubling Potential Analysis</option>
+                  <option value="social_sentiment">Social Sentiment Scanner</option>
                 </select>
               </div>
               <div>
@@ -194,6 +196,7 @@ pageRoutes.get('/watchlist', (c) => {
                   <option value="bias_mode">Bias Mode Detection</option>
                   <option value="ai_scorer">AI Scoring Framework</option>
                   <option value="doubler">Doubling Potential Analysis</option>
+                  <option value="social_sentiment">Social Sentiment Scanner</option>
                 </select>
               </div>
               <div>
@@ -612,6 +615,7 @@ const dashboardScript = `
         doubler: 'DOUBLER',
         ai_scorer: 'AI SCORER',
         portfolio_heat: 'PORTFOLIO HEAT',
+        social_sentiment: 'SOCIAL SENTIMENT',
       };
       const agentColors = {
         material_events: 'bg-blue-500/20 text-blue-400',
@@ -622,6 +626,7 @@ const dashboardScript = `
         hot_macro: 'bg-cyan-500/20 text-cyan-400',
         doubler: 'bg-orange-500/20 text-orange-400',
         ai_scorer: 'bg-indigo-500/20 text-indigo-400',
+        social_sentiment: 'bg-teal-500/20 text-teal-400',
       };
       const impactColors = { H: 'bg-red-500/20 text-red-400', M: 'bg-amber-500/20 text-amber-400', L: 'bg-green-500/20 text-green-400' };
       const impactEmoji = { H: '<i class="fas fa-circle text-red-500 text-[8px]"></i>', M: '<i class="fas fa-circle text-amber-500 text-[8px]"></i>', L: '<i class="fas fa-circle text-green-500 text-[8px]"></i>' };
@@ -1083,7 +1088,7 @@ const tickerDetailScript = `
 
       '<div id="ticker-tab-3" class="hidden">' +
         (data.reports.length > 0 ? '<div class="space-y-3">' + data.reports.map(r => {
-          const agentLabels = {material_events:'MATERIAL EVENTS',bias_mode:'BIAS MODE',mag7_monitor:'MAG 7',aomg_scanner:'AOMG',hot_micro:'HOT MICRO',hot_macro:'HOT MACRO',doubler:'DOUBLER',ai_scorer:'AI SCORER'};
+          const agentLabels = {material_events:'MATERIAL EVENTS',bias_mode:'BIAS MODE',mag7_monitor:'MAG 7',aomg_scanner:'AOMG',hot_micro:'HOT MICRO',hot_macro:'HOT MACRO',doubler:'DOUBLER',ai_scorer:'AI SCORER',social_sentiment:'SOCIAL SENTIMENT'};
           return '<div class="bg-ekantik-card border border-ekantik-border rounded-lg p-4 hover:border-ekantik-gold/30">' +
             '<div class="flex items-center gap-2">' +
               '<span class="px-2 py-0.5 bg-ekantik-surface text-xs font-bold text-ekantik-gold rounded">' + (agentLabels[r.agent_type]||r.agent_type) + '</span>' +

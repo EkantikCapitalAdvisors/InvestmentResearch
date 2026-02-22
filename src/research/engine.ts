@@ -219,6 +219,9 @@ export async function persistReport(
     if (agentType === 'mag7_monitor' && structured.stocks) {
       await persistMag7Scores(db, reportId, structured.stocks)
     }
+    if (agentType === 'social_sentiment' && structured.high_conviction_signals) {
+      await persistSocialSentiment(db, reportId, structured)
+    }
   } catch (e) {
     console.error('Error persisting agent-specific data:', e)
   }
@@ -349,6 +352,36 @@ async function persistMag7Scores(db: D1Database, reportId: string, stocks: any[]
         stock.conviction || 'MEDIUM',
         stock.one_liner || null
       ).run()
+    }
+  }
+}
+
+// ── Helper: Persist Social Sentiment Signals ──────────────
+async function persistSocialSentiment(db: D1Database, reportId: string, structured: any) {
+  // Social sentiment stores its intelligence primarily in the structured_json column of research_reports.
+  // For cross-referencing, we also create observations from high-conviction signals
+  // so they appear in the Observations feed.
+  const signals = structured.high_conviction_signals || []
+  for (const signal of signals.slice(0, 10)) {
+    try {
+      const obsId = `obs-social-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`
+      const happened = `[Social ${signal.signal_type?.toUpperCase() || 'SIGNAL'}] ${signal.core_thesis || 'Social momentum detected'}`
+      const whyMatters = `Signal Tier ${signal.signal_tier || '?'} from ${signal.source_platform || 'unknown'} (${signal.source_subreddit || 'N/A'}). Thesis grade: ${signal.thesis_quality_grade || '?'}. Bull/Bear split: ${signal.bull_bear_split || 'N/A'}.`
+      const watchNext = signal.catalyst || 'Monitor social momentum trajectory and cross-platform confirmation.'
+
+      await db.prepare(`
+        INSERT INTO observations (id, happened_text, why_matters, watch_next, ticker_symbols, category, promoted_to_report_id)
+        VALUES (?, ?, ?, ?, ?, 'social_sentiment', ?)
+      `).bind(
+        obsId,
+        happened.substring(0, 500),
+        whyMatters.substring(0, 500),
+        watchNext.substring(0, 500),
+        JSON.stringify(signal.ticker ? [signal.ticker] : []),
+        reportId
+      ).run()
+    } catch (e) {
+      console.error('Error persisting social sentiment observation:', e)
     }
   }
 }

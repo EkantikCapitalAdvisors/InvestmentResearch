@@ -11,6 +11,7 @@ const AGENT_LABELS: Record<string, string> = {
   hot_macro: ':globe_with_meridians: Hot Macro Events',
   doubler: ':rocket: Doubling Potential Analysis',
   aomg_scanner: ':dart: AOMG Growth Scanner',
+  social_sentiment: ':speech_balloon: Social Sentiment Scanner',
 }
 
 const IMPACT_EMOJI: Record<string, string> = {
@@ -132,6 +133,9 @@ export function buildBlockKitResponse(
       break
     case 'aomg_scanner':
       blocks.push(...buildAomgBlocks(s))
+      break
+    case 'social_sentiment':
+      blocks.push(...buildSocialSentimentBlocks(s))
       break
   }
 
@@ -423,4 +427,122 @@ function formatMarketSize(val: number): string {
   if (val >= 1e9) return `$${(val / 1e9).toFixed(0)}B`
   if (val >= 1e6) return `$${(val / 1e6).toFixed(0)}M`
   return `$${val}`
+}
+
+// ── Social Sentiment Blocks ───────────────────────────────
+function buildSocialSentimentBlocks(s: any): any[] {
+  const blocks: any[] = []
+
+  // Sentiment Snapshot
+  const tempEmoji: Record<string, string> = { hot: ':fire:', warm: ':sunny:', neutral: ':cloud:', cold: ':snowflake:' }
+  const dirEmoji: Record<string, string> = { bullish: ':chart_with_upwards_trend:', bearish: ':chart_with_downwards_trend:', divided: ':left_right_arrow:', neutral: ':straight_ruler:' }
+  const trajEmoji: Record<string, string> = { improving: ':arrow_upper_right:', deteriorating: ':arrow_lower_right:', stable: ':heavy_minus_sign:' }
+
+  blocks.push({ type: 'divider' })
+  let snapshot = `*Mode:* ${(s.mode || 'scan').toUpperCase()}\n`
+  snapshot += `*Social Temperature:* ${tempEmoji[s.social_temperature] || ''} ${s.social_temperature || '—'}\n`
+  snapshot += `*Consensus:* ${dirEmoji[s.consensus_direction] || ''} ${s.consensus_direction || '—'}\n`
+  snapshot += `*Trajectory:* ${trajEmoji[s.sentiment_trajectory] || ''} ${s.sentiment_trajectory || '—'}\n`
+  snapshot += `*DD Quality:* ${s.dd_quality || '—'} · *Crowding Risk:* ${s.crowding_risk || '—'}`
+
+  blocks.push({
+    type: 'section',
+    text: { type: 'mrkdwn', text: snapshot }
+  })
+
+  // High-Conviction Signals
+  const signals = s.high_conviction_signals || []
+  if (signals.length > 0) {
+    blocks.push({ type: 'divider' })
+    blocks.push({
+      type: 'section',
+      text: { type: 'mrkdwn', text: `:fire: *HIGH-CONVICTION SIGNALS*` }
+    })
+
+    const tierEmoji: Record<number, string> = { 1: ':memo:', 2: ':whale:', 3: ':chart_with_upwards_trend:', 4: ':bar_chart:' }
+    for (const sig of signals.slice(0, 5)) {
+      let sigText = `${tierEmoji[sig.signal_tier] || ':white_circle:'} *\`${sig.ticker}\`* — T${sig.signal_tier} ${(sig.signal_type || '').toUpperCase()}`
+      sigText += `\n${sig.core_thesis || 'No thesis summary'}`
+      if (sig.catalyst) sigText += `\n_Catalyst: ${sig.catalyst}_`
+      if (sig.source_subreddit) sigText += ` · _${sig.source_subreddit}_`
+      if (sig.thesis_quality_grade) sigText += ` · _Grade: ${sig.thesis_quality_grade}_`
+      if (sig.source_url) sigText += `\n<${sig.source_url}|:link: Source>`
+
+      blocks.push({
+        type: 'section',
+        text: { type: 'mrkdwn', text: sigText }
+      })
+    }
+  }
+
+  // Cross-Platform Heat Map
+  const heat = s.cross_platform_heat || []
+  if (heat.length > 0) {
+    blocks.push({ type: 'divider' })
+    const heatLines = heat.map((h: any) => {
+      const platforms = [
+        h.wsb ? 'WSB' : null,
+        h.r_stocks ? 'r/stocks' : null,
+        h.r_options ? 'r/options' : null,
+        h.r_investing ? 'r/investing' : null,
+        h.x_fintwit ? 'X' : null,
+      ].filter(Boolean).join(' · ')
+      const strengthEmoji = h.signal_strength === 'strong' ? ':large_green_circle:' : h.signal_strength === 'moderate' ? ':large_orange_circle:' : ':white_circle:'
+      return `${strengthEmoji} *\`${h.ticker}\`* — ${platforms}`
+    }).join('\n')
+
+    blocks.push({
+      type: 'section',
+      text: { type: 'mrkdwn', text: `:world_map: *Cross-Platform Heat*\n${heatLines}` }
+    })
+  }
+
+  // Bull Case Summary
+  if (s.bull_case && s.bull_case.thesis_summary) {
+    blocks.push({ type: 'divider' })
+    let bullText = `:chart_with_upwards_trend: *Best Bull Case* (Grade: ${s.bull_case.thesis_quality_grade || '?'})\n${s.bull_case.thesis_summary}`
+    if (s.bull_case.source_url) bullText += `\n<${s.bull_case.source_url}|:link: Source>`
+    blocks.push({ type: 'section', text: { type: 'mrkdwn', text: bullText } })
+  }
+
+  // Bear Case Summary
+  if (s.bear_case && s.bear_case.thesis_summary) {
+    let bearText = `:chart_with_downwards_trend: *Best Bear Case* (Grade: ${s.bear_case.thesis_quality_grade || '?'})\n${s.bear_case.thesis_summary}`
+    if (s.bear_case.source_url) bearText += `\n<${s.bear_case.source_url}|:link: Source>`
+    blocks.push({ type: 'section', text: { type: 'mrkdwn', text: bearText } })
+  }
+
+  // Red Flags
+  if (s.red_flags && s.red_flags.length > 0) {
+    blocks.push({ type: 'divider' })
+    blocks.push({
+      type: 'section',
+      text: { type: 'mrkdwn', text: `:rotating_light: *Red Flags*\n${s.red_flags.map((f: string) => `:warning: ${f}`).join('\n')}` }
+    })
+  }
+
+  // Momentum & Contrarian Signals (compact)
+  const momentum = s.momentum_signals || []
+  if (momentum.length > 0) {
+    const momLines = momentum.slice(0, 3).map((m: any) =>
+      `*\`${m.ticker}\`* — ${m.description}${m.source_url ? ` <${m.source_url}|:link:>` : ''}`
+    ).join('\n')
+    blocks.push({
+      type: 'section',
+      text: { type: 'mrkdwn', text: `:zap: *Momentum Building*\n${momLines}` }
+    })
+  }
+
+  const contrarian = s.contrarian_signals || []
+  if (contrarian.length > 0) {
+    const conLines = contrarian.slice(0, 3).map((cs: any) =>
+      `*\`${cs.ticker}\`* — ${cs.description}${cs.source_url ? ` <${cs.source_url}|:link:>` : ''}`
+    ).join('\n')
+    blocks.push({
+      type: 'section',
+      text: { type: 'mrkdwn', text: `:no_entry: *Contrarian / Bear Signals*\n${conLines}` }
+    })
+  }
+
+  return blocks
 }

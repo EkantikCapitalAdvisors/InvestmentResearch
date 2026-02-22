@@ -96,6 +96,7 @@ slackRoutes.post('/commands', async (c) => {
     '/trend': { agent: 'hot_micro', needsTicker: false, description: 'Hot Micro Trends' },
     '/macro': { agent: 'hot_macro', needsTicker: false, description: 'Hot Macro Events' },
     '/doubler': { agent: 'doubler', needsTicker: true, description: 'Doubling Potential Analysis' },
+    '/sentiment': { agent: 'social_sentiment', needsTicker: false, description: 'Social Sentiment Scanner' },
   }
 
   const cmdConfig = commandMap[command]
@@ -238,7 +239,7 @@ slackRoutes.get('/health', (c) => {
   return c.json({
     status: 'ok',
     service: 'ekantik-slack',
-    commands: ['/material', '/bias', '/mag7', '/score', '/heat', '/watch', '/aomg', '/trend', '/macro', '/doubler'],
+    commands: ['/material', '/bias', '/mag7', '/score', '/heat', '/watch', '/aomg', '/trend', '/macro', '/doubler', '/sentiment'],
     version: '2.0.0',
   })
 })

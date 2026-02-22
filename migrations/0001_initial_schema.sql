@@ -50,7 +50,7 @@ CREATE INDEX IF NOT EXISTS idx_tickers_mag7 ON tickers(is_mag7) WHERE is_mag7 = 
 -- RESEARCH REPORTS: Central intelligence repository
 CREATE TABLE IF NOT EXISTS research_reports (
   id TEXT PRIMARY KEY,
-  agent_type TEXT NOT NULL CHECK(agent_type IN ('material_events','bias_mode','mag7_monitor','aomg_scanner','hot_micro','hot_macro','doubler','ai_scorer','portfolio_heat','superlative_products')),
+  agent_type TEXT NOT NULL CHECK(agent_type IN ('material_events','bias_mode','mag7_monitor','aomg_scanner','hot_micro','hot_macro','doubler','ai_scorer','portfolio_heat','superlative_products','social_sentiment')),
   ticker_symbols TEXT DEFAULT '[]',
   trigger_source TEXT NOT NULL CHECK(trigger_source IN ('slack','cron','event','portal','manual')),
   model_used TEXT,
