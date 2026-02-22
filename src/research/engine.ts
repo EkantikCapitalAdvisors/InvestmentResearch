@@ -41,10 +41,10 @@ IMPORTANT:
 3. Follow the JSON with a detailed markdown analysis.
 4. Be specific with numbers, dates, and sources.`
 
-  // Select model — use Sonnet for routine, Opus for deep analysis
-  const model = ['bias_mode', 'doubler', 'aomg_scanner'].includes(agentType) 
-    ? 'claude-sonnet-4-20250514'  // Heavier analysis
-    : 'claude-sonnet-4-20250514'  // Standard — use Sonnet for cost efficiency in MVP
+  // Select model — Opus for deep analysis, Sonnet for routine tasks
+  const model = ['bias_mode', 'doubler', 'aomg_scanner'].includes(agentType)
+    ? 'claude-opus-4-6'    // Heavy analysis
+    : 'claude-sonnet-4-6'  // Routine
 
   // Retry logic for rate limits
   let response: Response | null = null
