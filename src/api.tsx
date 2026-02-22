@@ -1,5 +1,6 @@
 import { Hono } from 'hono'
 import { processPortalResearch } from './slack/handlers'
+import { refreshPrices, fetchQuote } from './market/yahoo'
 
 type Bindings = { DB: D1Database; ANTHROPIC_API_KEY: string }
 
@@ -248,6 +249,37 @@ apiRoutes.get('/config/:key', async (c) => {
   const row = await c.env.DB.prepare('SELECT * FROM system_config WHERE key = ?').bind(key).first()
   if (!row) return c.json({ error: 'Config not found' }, 404)
   return c.json({ key: row.key, value: JSON.parse(row.value as string) })
+})
+
+// ============================================================
+// MARKET DATA — Yahoo Finance Live Prices
+// ============================================================
+apiRoutes.post('/market/refresh', async (c) => {
+  try {
+    const result = await refreshPrices(c.env.DB)
+    return c.json({
+      success: true,
+      updated: result.updated,
+      failed: result.failed,
+      quotes: result.quotes.map(q => ({
+        symbol: q.symbol,
+        price: q.price,
+        changePercent: q.changePercent,
+        marketState: q.marketState,
+      })),
+      refreshedAt: new Date().toISOString(),
+    })
+  } catch (error: any) {
+    console.error('Price refresh failed:', error)
+    return c.json({ error: error.message || 'Price refresh failed' }, 500)
+  }
+})
+
+apiRoutes.get('/market/quote/:symbol', async (c) => {
+  const symbol = c.req.param('symbol').toUpperCase()
+  const quote = await fetchQuote(symbol)
+  if (!quote) return c.json({ error: 'Quote not found' }, 404)
+  return c.json(quote)
 })
 
 // ============================================================

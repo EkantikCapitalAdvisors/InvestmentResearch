@@ -86,15 +86,14 @@ export const Layout: FC<{ active: string; children: any }> = ({ active, children
               </div>
             </div>
             <div class="flex items-center gap-4">
+              <button onclick="refreshMarketPrices()" id="refresh-prices-btn" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-ekantik-gold/30 text-ekantik-gold text-xs hover:bg-ekantik-gold/10 transition-colors">
+                <i class="fas fa-sync-alt text-[10px]" id="refresh-icon"></i>
+                <span id="refresh-label">Refresh Prices</span>
+              </button>
+              <span class="text-[10px] text-gray-500" id="last-refresh"></span>
               <div class="flex items-center gap-2 text-xs text-gray-400">
-                <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full border border-ekantik-green/30 text-ekantik-green">
-                  <i class="fas fa-sync-alt text-[10px]"></i>
-                  UPDATED WEEKLY
-                </span>
-              </div>
-              <div class="flex items-center gap-2 text-xs text-gray-400">
-                <div class="w-2 h-2 bg-ekantik-green rounded-full pulse-gold"></div>
-                <span>Live</span>
+                <div class="w-2 h-2 bg-ekantik-green rounded-full pulse-gold" id="live-dot"></div>
+                <span id="market-state">Live</span>
               </div>
             </div>
           </div>
@@ -104,6 +103,52 @@ export const Layout: FC<{ active: string; children: any }> = ({ active, children
           {children}
         </div>
       </main>
+
+      {/* Global Market Refresh Script */}
+      <script dangerouslySetInnerHTML={{ __html: `
+        let _pricesRefreshing = false;
+        async function refreshMarketPrices() {
+          if (_pricesRefreshing) return;
+          _pricesRefreshing = true;
+          const btn = document.getElementById('refresh-prices-btn');
+          const icon = document.getElementById('refresh-icon');
+          const label = document.getElementById('refresh-label');
+          if (icon) icon.classList.add('fa-spin');
+          if (label) label.textContent = 'Refreshing...';
+          try {
+            const res = await fetch('/api/market/refresh', { method: 'POST' });
+            const data = await res.json();
+            if (data.success) {
+              if (label) label.textContent = data.updated + ' updated';
+              const ts = document.getElementById('last-refresh');
+              if (ts) ts.textContent = 'as of ' + new Date().toLocaleTimeString();
+              const dot = document.getElementById('live-dot');
+              if (dot) { dot.classList.remove('bg-gray-500'); dot.classList.add('bg-ekantik-green'); }
+              const ms = document.getElementById('market-state');
+              if (ms && data.quotes && data.quotes[0]) ms.textContent = data.quotes[0].marketState === 'REGULAR' ? 'Market Open' : 'Market Closed';
+              setTimeout(() => { if (label) label.textContent = 'Refresh Prices'; }, 3000);
+              // Trigger page-specific reload if available
+              if (typeof window._onPricesRefreshed === 'function') window._onPricesRefreshed(data);
+              else setTimeout(() => location.reload(), 500);
+            } else {
+              if (label) label.textContent = 'Error';
+              setTimeout(() => { if (label) label.textContent = 'Refresh Prices'; }, 3000);
+            }
+          } catch(e) {
+            console.error('Price refresh failed:', e);
+            if (label) label.textContent = 'Failed';
+            setTimeout(() => { if (label) label.textContent = 'Refresh Prices'; }, 3000);
+          }
+          if (icon) icon.classList.remove('fa-spin');
+          _pricesRefreshing = false;
+        }
+        // Auto-refresh prices on first page load (debounced to avoid hammering)
+        if (!sessionStorage.getItem('_pricesRefreshed') || (Date.now() - parseInt(sessionStorage.getItem('_pricesRefreshed')||'0')) > 300000) {
+          setTimeout(() => {
+            refreshMarketPrices().then(() => sessionStorage.setItem('_pricesRefreshed', Date.now().toString()));
+          }, 1000);
+        }
+      `}} />
     </div>
   )
 }
