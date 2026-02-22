@@ -223,10 +223,34 @@ apiRoutes.get('/watchlist', async (c) => {
     SELECT t.*, 
       (SELECT composite FROM ai_scores WHERE ticker_id = t.id ORDER BY scored_at DESC LIMIT 1) as latest_ai_score,
       (SELECT conviction_level FROM ai_scores WHERE ticker_id = t.id ORDER BY scored_at DESC LIMIT 1) as latest_conviction,
-      (SELECT impact_score FROM research_reports WHERE ticker_symbols LIKE '%' || t.symbol || '%' ORDER BY created_at DESC LIMIT 1) as latest_impact
-    FROM tickers t WHERE t.is_watchlist = 1 ORDER BY t.is_mag7 DESC, t.symbol ASC
+      (SELECT impact_score FROM research_reports WHERE ticker_symbols LIKE '%' || t.symbol || '%' ORDER BY created_at DESC LIMIT 1) as latest_impact,
+      (SELECT episodic_pivot_json FROM research_reports WHERE ticker_symbols LIKE '%' || t.symbol || '%' AND episodic_pivot_json IS NOT NULL ORDER BY created_at DESC LIMIT 1) as latest_pivot_json
+    FROM tickers t WHERE t.is_watchlist = 1 ORDER BY t.pivot_watch DESC, t.is_mag7 DESC, t.symbol ASC
   `).all()
   return c.json({ tickers: results })
+})
+
+// ── Toggle pivot watch on a ticker ──────────────────────────
+apiRoutes.post('/watchlist/pivot-watch', async (c) => {
+  const body = await c.req.json()
+  const { symbol, pivot_watch, pivot_watch_notes, pivot_watch_type } = body
+  if (!symbol) return c.json({ error: 'symbol is required' }, 400)
+  const sym = symbol.toUpperCase().trim()
+
+  const existing = await c.env.DB.prepare('SELECT * FROM tickers WHERE symbol = ?').bind(sym).first() as any
+  if (!existing) return c.json({ error: `${sym} not found` }, 404)
+
+  await c.env.DB.prepare(
+    "UPDATE tickers SET pivot_watch = ?, pivot_watch_notes = ?, pivot_watch_type = ?, pivot_watch_updated_at = datetime('now'), updated_at = datetime('now') WHERE id = ?"
+  ).bind(
+    pivot_watch ? 1 : 0,
+    pivot_watch_notes || null,
+    pivot_watch_type || null,
+    existing.id
+  ).run()
+
+  const updated = await c.env.DB.prepare('SELECT * FROM tickers WHERE id = ?').bind(existing.id).first()
+  return c.json({ success: true, ticker: updated })
 })
 
 // ── Watchlist Management ─────────────────────────────────────
@@ -445,8 +469,17 @@ apiRoutes.post('/observations', async (c) => {
   const body = await c.req.json()
   const id = 'obs-' + Date.now()
   await c.env.DB.prepare(
-    'INSERT INTO observations (id, happened_text, why_matters, watch_next, ticker_symbols, kpi, category) VALUES (?, ?, ?, ?, ?, ?, ?)'
-  ).bind(id, body.happened_text, body.why_matters, body.watch_next, JSON.stringify(body.ticker_symbols || []), body.kpi || null, body.category || null).run()
+    'INSERT INTO observations (id, happened_text, why_matters, watch_next, ticker_symbols, kpi, category, is_potential_pivot, pivot_type, pivot_magnitude, catalyst_date, reality_change) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
+  ).bind(
+    id, body.happened_text, body.why_matters, body.watch_next,
+    JSON.stringify(body.ticker_symbols || []),
+    body.kpi || null, body.category || null,
+    body.is_potential_pivot ? 1 : 0,
+    body.pivot_type || null,
+    body.pivot_magnitude || null,
+    body.catalyst_date || null,
+    body.reality_change || null
+  ).run()
   return c.json({ id, success: true })
 })
 
@@ -472,7 +505,7 @@ apiRoutes.get('/journal', async (c) => {
 // ── Create Position ──────────────────────────────────────────
 apiRoutes.post('/journal/positions', async (c) => {
   const body = await c.req.json()
-  const { symbol, engine, entry_price, entry_date, size_pct, stop_price, target_price, thesis } = body
+  const { symbol, engine, entry_price, entry_date, size_pct, stop_price, target_price, thesis, episodic_pivot } = body
   if (!symbol || !engine || !entry_price || !entry_date || !size_pct) {
     return c.json({ error: 'symbol, engine, entry_price, entry_date, size_pct are required' }, 400)
   }
@@ -483,11 +516,12 @@ apiRoutes.post('/journal/positions', async (c) => {
   const id = `pos-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`
   const stopDist = stop_price ? Math.abs(((entry_price - stop_price) / entry_price) * 100) : null
   const heat = stop_price ? (size_pct * (stopDist! / 100)) : (size_pct * 0.05)
+  const pivotJson = episodic_pivot ? JSON.stringify(episodic_pivot) : null
 
   await c.env.DB.prepare(`
-    INSERT INTO portfolio_positions (id, ticker_id, engine, entry_price, entry_date, current_price, size_pct, stop_price, stop_distance_pct, heat_contribution, target_price, pnl_pct, pnl_usd, thesis, status)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, 0, ?, 'open')
-  `).bind(id, ticker.id, engine, entry_price, entry_date, entry_price, size_pct, stop_price || null, stopDist, heat, target_price || null, thesis || null).run()
+    INSERT INTO portfolio_positions (id, ticker_id, engine, entry_price, entry_date, current_price, size_pct, stop_price, stop_distance_pct, heat_contribution, target_price, pnl_pct, pnl_usd, thesis, episodic_pivot_json, status)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, 0, ?, ?, 'open')
+  `).bind(id, ticker.id, engine, entry_price, entry_date, entry_price, size_pct, stop_price || null, stopDist, heat, target_price || null, thesis || null, pivotJson).run()
 
   const position = await c.env.DB.prepare('SELECT pp.*, t.symbol, t.name FROM portfolio_positions pp JOIN tickers t ON pp.ticker_id = t.id WHERE pp.id = ?').bind(id).first()
   return c.json({ success: true, position })
@@ -556,7 +590,7 @@ apiRoutes.delete('/journal/positions/:id', async (c) => {
 // ── Create Signal ────────────────────────────────────────────
 apiRoutes.post('/journal/signals', async (c) => {
   const body = await c.req.json()
-  const { symbol, signal_type, engine, confidence, entry_price, stop_price, target_price, thesis, time_horizon, position_size_pct, invalidation_criteria } = body
+  const { symbol, signal_type, engine, confidence, entry_price, stop_price, target_price, thesis, time_horizon, position_size_pct, invalidation_criteria, episodic_pivot } = body
   if (!symbol || !signal_type || !engine) {
     return c.json({ error: 'symbol, signal_type, engine are required' }, 400)
   }
@@ -567,11 +601,12 @@ apiRoutes.post('/journal/signals', async (c) => {
   const id = `sig-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`
   const rr = entry_price && stop_price && target_price && (entry_price - stop_price) !== 0
     ? Math.abs((target_price - entry_price) / (entry_price - stop_price)) : null
+  const pivotJson = episodic_pivot ? JSON.stringify(episodic_pivot) : null
 
   await c.env.DB.prepare(`
-    INSERT INTO trade_signals (id, ticker_id, signal_type, engine, confidence, entry_price, stop_price, target_price, risk_reward_ratio, position_size_pct, thesis, invalidation_criteria, time_horizon, is_active, activated_at)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, datetime('now'))
-  `).bind(id, ticker.id, signal_type, engine, confidence || null, entry_price || null, stop_price || null, target_price || null, rr, position_size_pct || null, thesis || null, invalidation_criteria || null, time_horizon || null).run()
+    INSERT INTO trade_signals (id, ticker_id, signal_type, engine, confidence, entry_price, stop_price, target_price, risk_reward_ratio, position_size_pct, thesis, invalidation_criteria, time_horizon, episodic_pivot_json, is_active, activated_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, datetime('now'))
+  `).bind(id, ticker.id, signal_type, engine, confidence || null, entry_price || null, stop_price || null, target_price || null, rr, position_size_pct || null, thesis || null, invalidation_criteria || null, time_horizon || null, pivotJson).run()
 
   const signal = await c.env.DB.prepare('SELECT ts.*, t.symbol, t.name FROM trade_signals ts JOIN tickers t ON ts.ticker_id = t.id WHERE ts.id = ?').bind(id).first()
   return c.json({ success: true, signal })

@@ -289,6 +289,46 @@ pageRoutes.get('/watchlist', (c) => {
             </div>
           </div>
         </div>
+
+        {/* Pivot Watch Modal */}
+        <div id="pivot-watch-modal" class="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 hidden items-center justify-center" onclick="if(event.target===this)closePivotWatchModal()">
+          <div class="bg-ekantik-card border border-amber-500/30 rounded-2xl w-full max-w-md mx-4">
+            <div class="flex items-center justify-between p-5 border-b border-ekantik-border">
+              <h3 class="text-lg font-bold text-white"><i class="fas fa-bolt mr-2 text-amber-400"></i>Pivot Watch — <span id="pw-symbol" class="text-amber-400"></span></h3>
+              <button onclick="closePivotWatchModal()" class="text-gray-400 hover:text-white"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="p-5 space-y-4">
+              <p class="text-xs text-gray-400">Mark this ticker as being watched for a potential episodic pivot. You'll see it highlighted in the watchlist.</p>
+              <div>
+                <label class="block text-xs text-gray-400 mb-1">Expected Pivot Type</label>
+                <select id="pw-type" class="w-full bg-ekantik-bg border border-amber-500/30 rounded-lg px-3 py-2 text-white text-sm">
+                  <option value="">Any / Unknown</option>
+                  <option value="earnings_surprise">Earnings Surprise</option>
+                  <option value="regulatory_shift">Regulatory Shift</option>
+                  <option value="management_change">Management Change</option>
+                  <option value="product_inflection">Product Inflection</option>
+                  <option value="macro_regime">Macro Regime</option>
+                  <option value="geopolitical">Geopolitical</option>
+                  <option value="narrative_collapse">Narrative Collapse</option>
+                  <option value="competitive_moat">Competitive Moat</option>
+                  <option value="capital_event">Capital Event</option>
+                </select>
+              </div>
+              <div>
+                <label class="block text-xs text-gray-400 mb-1">Notes (what are you watching for?)</label>
+                <textarea id="pw-notes" rows={3} class="w-full bg-ekantik-bg border border-amber-500/30 rounded-lg px-3 py-2 text-white text-sm" placeholder="e.g. Earnings next week, expecting beat on cloud growth..."></textarea>
+              </div>
+            </div>
+            <div class="p-5 border-t border-ekantik-border flex justify-between gap-3">
+              <button onclick="removePivotWatch()" id="pw-remove-btn" class="hidden px-4 py-2 bg-ekantik-bg text-gray-400 rounded-lg text-sm hover:text-ekantik-red hover:bg-red-500/10">Remove Watch</button>
+              <div class="flex gap-3 ml-auto">
+                <button onclick="closePivotWatchModal()" class="px-4 py-2 bg-ekantik-bg text-gray-400 rounded-lg text-sm hover:text-white">Cancel</button>
+                <button onclick="savePivotWatch()" class="px-5 py-2 bg-amber-500 text-black rounded-lg text-sm font-semibold hover:bg-amber-400"><i class="fas fa-bolt mr-1"></i>Set Pivot Watch</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
         <div id="watchlist-table" class="bg-ekantik-card border border-ekantik-border rounded-xl overflow-hidden">
           <div class="text-center py-12 text-gray-500">
             <i class="fas fa-spinner fa-spin text-2xl mb-3"></i>
@@ -478,6 +518,21 @@ pageRoutes.get('/journal', (c) => {
               <div><label class="block text-xs text-gray-400 mb-1">Target Price</label><input id="pos-target" type="number" step="0.01" class="w-full bg-ekantik-bg border border-ekantik-border rounded-lg px-3 py-2 text-white text-sm" placeholder="175.00" /></div>
             </div>
             <div><label class="block text-xs text-gray-400 mb-1">Thesis</label><textarea id="pos-thesis" rows={2} class="w-full bg-ekantik-bg border border-ekantik-border rounded-lg px-3 py-2 text-white text-sm" placeholder="Breakout above 200-day MA on volume..."></textarea></div>
+            {/* ── Episodic Pivot Context ── */}
+            <div class="border-t border-ekantik-border/50 pt-3">
+              <label class="flex items-center gap-2 cursor-pointer mb-2">
+                <input type="checkbox" id="pos-has-pivot" class="w-4 h-4 rounded border-ekantik-border bg-ekantik-bg text-amber-500" />
+                <span class="text-xs font-semibold text-amber-400"><i class="fas fa-bolt mr-1"></i>Episodic Pivot Entry</span>
+              </label>
+              <div id="pos-pivot-fields" class="hidden space-y-3">
+                <div class="grid grid-cols-2 gap-3">
+                  <div><label class="block text-xs text-gray-400 mb-1">Pivot Type</label><select id="pos-pivot-type" class="w-full bg-ekantik-bg border border-amber-500/30 rounded-lg px-3 py-2 text-white text-sm"><option value="">—</option><option value="earnings_surprise">Earnings Surprise</option><option value="regulatory_shift">Regulatory Shift</option><option value="management_change">Management Change</option><option value="product_inflection">Product Inflection</option><option value="macro_regime">Macro Regime</option><option value="geopolitical">Geopolitical</option><option value="narrative_collapse">Narrative Collapse</option><option value="competitive_moat">Competitive Moat</option><option value="capital_event">Capital Event</option></select></div>
+                  <div><label class="block text-xs text-gray-400 mb-1">Magnitude</label><select id="pos-pivot-magnitude" class="w-full bg-ekantik-bg border border-amber-500/30 rounded-lg px-3 py-2 text-white text-sm"><option value="">—</option><option value="high">High</option><option value="medium">Medium</option><option value="low">Low</option></select></div>
+                </div>
+                <div><label class="block text-xs text-gray-400 mb-1">Pivot Event</label><input id="pos-pivot-event" type="text" class="w-full bg-ekantik-bg border border-amber-500/30 rounded-lg px-3 py-2 text-white text-sm" placeholder="e.g. Q4 earnings beat with Blackwell ramp confirmation" /></div>
+                <div><label class="block text-xs text-gray-400 mb-1">Reality Change</label><input id="pos-pivot-reality" type="text" class="w-full bg-ekantik-bg border border-amber-500/30 rounded-lg px-3 py-2 text-white text-sm" placeholder="e.g. Market underpricing data-center demand durability" /></div>
+              </div>
+            </div>
           </div>
           <div class="p-5 border-t border-ekantik-border flex justify-end gap-3">
             <button onclick="closePositionModal()" class="px-4 py-2 bg-ekantik-bg text-gray-400 rounded-lg text-sm hover:text-white">Cancel</button>
@@ -533,6 +588,15 @@ pageRoutes.get('/journal', (c) => {
             </div>
             <div><label class="block text-xs text-gray-400 mb-1">Thesis</label><textarea id="sig-thesis" rows={2} class="w-full bg-ekantik-bg border border-ekantik-border rounded-lg px-3 py-2 text-white text-sm" placeholder="Signal thesis..."></textarea></div>
             <div><label class="block text-xs text-gray-400 mb-1">Invalidation Criteria</label><input id="sig-invalidation" type="text" class="w-full bg-ekantik-bg border border-ekantik-border rounded-lg px-3 py-2 text-white text-sm" placeholder="Break below 200-day MA" /></div>
+            {/* ── Pivot Context (visible when signal_type = episodic_pivot) ── */}
+            <div id="sig-pivot-fields" class="hidden border-t border-ekantik-border/50 pt-3 space-y-3">
+              <h4 class="text-xs font-semibold text-amber-400"><i class="fas fa-bolt mr-1"></i>Episodic Pivot Details</h4>
+              <div><label class="block text-xs text-gray-400 mb-1">Pivot Event</label><input id="sig-pivot-event" type="text" class="w-full bg-ekantik-bg border border-amber-500/30 rounded-lg px-3 py-2 text-white text-sm" placeholder="e.g. FDA approval for lead drug candidate" /></div>
+              <div class="grid grid-cols-2 gap-3">
+                <div><label class="block text-xs text-gray-400 mb-1">Magnitude</label><select id="sig-pivot-magnitude" class="w-full bg-ekantik-bg border border-amber-500/30 rounded-lg px-3 py-2 text-white text-sm"><option value="">—</option><option value="high">High</option><option value="medium">Medium</option><option value="low">Low</option></select></div>
+                <div><label class="block text-xs text-gray-400 mb-1">Reality Change</label><input id="sig-pivot-reality" type="text" class="w-full bg-ekantik-bg border border-amber-500/30 rounded-lg px-3 py-2 text-white text-sm" placeholder="What changed?" /></div>
+              </div>
+            </div>
           </div>
           <div class="p-5 border-t border-ekantik-border flex justify-end gap-3">
             <button onclick="closeSignalModal()" class="px-4 py-2 bg-ekantik-bg text-gray-400 rounded-lg text-sm hover:text-white">Cancel</button>
@@ -1035,13 +1099,13 @@ const watchlistScript = `
     container.innerHTML = '<table class="w-full"><thead><tr class="border-b border-ekantik-border">' +
       '<th class="text-left px-5 py-3 text-[10px] font-semibold text-gray-500 uppercase tracking-widest">Ticker</th>' +
       '<th class="text-left px-5 py-3 text-[10px] font-semibold text-gray-500 uppercase tracking-widest">Name</th>' +
+      '<th class="text-center px-5 py-3 text-[10px] font-semibold text-gray-500 uppercase tracking-widest">Pivot Watch</th>' +
       '<th class="text-right px-5 py-3 text-[10px] font-semibold text-gray-500 uppercase tracking-widest">Price</th>' +
       '<th class="text-right px-5 py-3 text-[10px] font-semibold text-gray-500 uppercase tracking-widest">Change</th>' +
       '<th class="text-right px-5 py-3 text-[10px] font-semibold text-gray-500 uppercase tracking-widest">AI Score</th>' +
       '<th class="text-center px-5 py-3 text-[10px] font-semibold text-gray-500 uppercase tracking-widest">Conviction</th>' +
       '<th class="text-center px-5 py-3 text-[10px] font-semibold text-gray-500 uppercase tracking-widest">Impact</th>' +
       '<th class="text-right px-5 py-3 text-[10px] font-semibold text-gray-500 uppercase tracking-widest">Market Cap</th>' +
-      '<th class="text-right px-5 py-3 text-[10px] font-semibold text-gray-500 uppercase tracking-widest">Fwd P/E</th>' +
       '<th class="text-center px-5 py-3 text-[10px] font-semibold text-gray-500 uppercase tracking-widest">Tags</th>' +
       '<th class="text-center px-5 py-3 text-[10px] font-semibold text-gray-500 uppercase tracking-widest"></th>' +
     '</tr></thead><tbody>' +
@@ -1052,16 +1116,50 @@ const watchlistScript = `
       const convColors = { HIGH: 'text-ekantik-green', MEDIUM: 'text-ekantik-amber', LOW: 'text-gray-400' };
       const mcap = t.market_cap ? (t.market_cap >= 1e12 ? (t.market_cap/1e12).toFixed(1)+'T' : (t.market_cap/1e9).toFixed(0)+'B') : '—';
 
-      return '<tr class="border-b border-ekantik-border/50 hover:bg-ekantik-surface/30 group">' +
+      // Pivot watch badge + latest detected pivot
+      const pivotWatchIcons = {
+        earnings_surprise: '<i class="fas fa-chart-line"></i>',
+        regulatory_shift: '<i class="fas fa-landmark"></i>',
+        management_change: '<i class="fas fa-user-tie"></i>',
+        product_inflection: '<i class="fas fa-lightbulb"></i>',
+        macro_regime: '<i class="fas fa-university"></i>',
+        geopolitical: '<i class="fas fa-globe"></i>',
+        narrative_collapse: '<i class="fas fa-exclamation-triangle"></i>',
+        competitive_moat: '<i class="fas fa-shield-alt"></i>',
+        capital_event: '<i class="fas fa-dollar-sign"></i>',
+      };
+      let pivotCell = '';
+      if (t.pivot_watch) {
+        const pwType = t.pivot_watch_type ? (pivotWatchIcons[t.pivot_watch_type] || '') : '';
+        pivotCell = '<div class="flex items-center justify-center gap-1">' +
+          '<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/20 text-amber-400 border border-amber-500/30 cursor-pointer" onclick="event.stopPropagation();openPivotWatchModal(\\'' + t.symbol + '\\', true, \\'' + (t.pivot_watch_notes||'').replace(/'/g, "\\\\'") + '\\', \\'' + (t.pivot_watch_type||'') + '\\')" title="' + (t.pivot_watch_notes||'Watching for pivot').replace(/"/g,'&quot;') + '">' +
+            '<i class="fas fa-bolt"></i> ' + pwType + ' WATCHING' +
+          '</span></div>';
+      } else {
+        // Check if latest_pivot_json has a detected pivot
+        let latestPivot = null;
+        try { latestPivot = t.latest_pivot_json ? JSON.parse(t.latest_pivot_json) : null; } catch(e) {}
+        if (latestPivot && latestPivot.identified) {
+          const magCls = latestPivot.magnitude === 'high' ? 'bg-red-500/20 text-red-400' : latestPivot.magnitude === 'medium' ? 'bg-amber-500/20 text-amber-400' : 'bg-green-500/20 text-green-400';
+          pivotCell = '<div class="flex items-center justify-center gap-1">' +
+            '<span class="px-2 py-0.5 rounded text-[10px] font-semibold ' + magCls + '">' +
+              '<i class="fas fa-bolt mr-1"></i>DETECTED' +
+            '</span></div>';
+        } else {
+          pivotCell = '<button onclick="event.stopPropagation();openPivotWatchModal(\\'' + t.symbol + '\\', false, \\'\\', \\'\\')" class="text-gray-600 hover:text-amber-400 text-xs transition-colors" title="Set pivot watch"><i class="fas fa-eye"></i></button>';
+        }
+      }
+
+      return '<tr class="border-b border-ekantik-border/50 hover:bg-ekantik-surface/30 group ' + (t.pivot_watch ? 'border-l-2 border-l-amber-500/50' : '') + '">' +
         '<td class="px-5 py-3 cursor-pointer" onclick="location.href=\\'/tickers/' + t.id + '\\'"><span class="font-mono font-bold text-white text-sm">' + t.symbol + '</span></td>' +
         '<td class="px-5 py-3 text-gray-300 text-sm cursor-pointer" onclick="location.href=\\'/tickers/' + t.id + '\\'">' + t.name + '</td>' +
+        '<td class="px-5 py-3 text-center">' + pivotCell + '</td>' +
         '<td class="px-5 py-3 text-right text-white font-semibold text-sm">$' + (t.last_price||0).toFixed(2) + '</td>' +
         '<td class="px-5 py-3 text-right text-sm ' + chgColor + ' font-semibold">' + chgSign + (t.price_change_pct||0).toFixed(2) + '%</td>' +
         '<td class="px-5 py-3 text-right"><span class="text-ekantik-gold font-bold text-sm">' + (t.latest_ai_score ? t.latest_ai_score.toFixed(1) : '—') + '</span></td>' +
         '<td class="px-5 py-3 text-center text-xs font-semibold ' + (convColors[t.latest_conviction] || 'text-gray-500') + '">' + (t.latest_conviction || '—') + '</td>' +
         '<td class="px-5 py-3 text-center">' + (t.latest_impact ? '<span class="px-2 py-0.5 rounded text-[10px] font-bold ' + (impactColors[t.latest_impact]||'') + '">' + t.latest_impact + '</span>' : '<span class="text-gray-500 text-xs">—</span>') + '</td>' +
         '<td class="px-5 py-3 text-right text-gray-300 text-sm">$' + mcap + '</td>' +
-        '<td class="px-5 py-3 text-right text-gray-300 text-sm">' + (t.forward_pe ? t.forward_pe.toFixed(1) + 'x' : '—') + '</td>' +
         '<td class="px-5 py-3 text-center">' + (t.is_mag7 ? '<span class="px-1.5 py-0.5 bg-ekantik-gold/20 text-ekantik-gold rounded text-[10px] font-bold">MAG7</span>' : '') + '</td>' +
         '<td class="px-5 py-3 text-center">' +
           '<button onclick="event.stopPropagation();removeTicker(\\'' + t.symbol + '\\')" class="opacity-0 group-hover:opacity-100 transition-opacity text-gray-500 hover:text-ekantik-red text-xs px-2 py-1 rounded hover:bg-ekantik-red/10" title="Remove from watchlist">' +
@@ -1228,6 +1326,57 @@ async function runWlResearch() {
     btn.disabled = false;
     btn.innerHTML = '<i class="fas fa-play"></i> Execute';
   }
+}
+
+// ── Pivot Watch Functions ──────────────────────────────────────
+let _pwSymbol = '';
+
+function openPivotWatchModal(symbol, isWatching, notes, type) {
+  _pwSymbol = symbol;
+  document.getElementById('pw-symbol').textContent = symbol;
+  document.getElementById('pw-type').value = type || '';
+  document.getElementById('pw-notes').value = notes || '';
+  document.getElementById('pw-remove-btn').classList.toggle('hidden', !isWatching);
+  document.getElementById('pivot-watch-modal').classList.remove('hidden');
+  document.getElementById('pivot-watch-modal').classList.add('flex');
+}
+
+function closePivotWatchModal() {
+  document.getElementById('pivot-watch-modal').classList.add('hidden');
+  document.getElementById('pivot-watch-modal').classList.remove('flex');
+  _pwSymbol = '';
+}
+
+async function savePivotWatch() {
+  if (!_pwSymbol) return;
+  try {
+    await fetch('/api/watchlist/pivot-watch', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        symbol: _pwSymbol,
+        pivot_watch: true,
+        pivot_watch_notes: document.getElementById('pw-notes').value.trim() || null,
+        pivot_watch_type: document.getElementById('pw-type').value || null,
+      })
+    });
+    closePivotWatchModal();
+    location.reload();
+  } catch(e) { alert('Error: ' + e.message); }
+}
+
+async function removePivotWatch() {
+  if (!_pwSymbol) return;
+  if (!confirm('Remove pivot watch from ' + _pwSymbol + '?')) return;
+  try {
+    await fetch('/api/watchlist/pivot-watch', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ symbol: _pwSymbol, pivot_watch: false })
+    });
+    closePivotWatchModal();
+    location.reload();
+  } catch(e) { alert('Error: ' + e.message); }
 }
 `
 
@@ -1660,6 +1809,37 @@ const heatScript = `
 `
 
 const observationsScript = `
+const pivotTypeOptions = [
+  { value: '', label: 'Not a Pivot' },
+  { value: 'earnings_surprise', label: 'Earnings Surprise' },
+  { value: 'regulatory_shift', label: 'Regulatory Shift' },
+  { value: 'management_change', label: 'Management Change' },
+  { value: 'product_inflection', label: 'Product Inflection' },
+  { value: 'macro_regime', label: 'Macro Regime' },
+  { value: 'geopolitical', label: 'Geopolitical' },
+  { value: 'narrative_collapse', label: 'Narrative Collapse' },
+  { value: 'competitive_moat', label: 'Competitive Moat' },
+  { value: 'capital_event', label: 'Capital Event' },
+];
+const pivotTypeIcons = {
+  earnings_surprise: '<i class="fas fa-chart-line"></i>',
+  regulatory_shift: '<i class="fas fa-landmark"></i>',
+  management_change: '<i class="fas fa-user-tie"></i>',
+  product_inflection: '<i class="fas fa-lightbulb"></i>',
+  macro_regime: '<i class="fas fa-university"></i>',
+  geopolitical: '<i class="fas fa-globe"></i>',
+  narrative_collapse: '<i class="fas fa-exclamation-triangle"></i>',
+  competitive_moat: '<i class="fas fa-shield-alt"></i>',
+  capital_event: '<i class="fas fa-dollar-sign"></i>',
+};
+const pivotTypeLabels = {
+  earnings_surprise: 'EARNINGS', regulatory_shift: 'REGULATORY',
+  management_change: 'MGMT CHANGE', product_inflection: 'PRODUCT',
+  macro_regime: 'MACRO', geopolitical: 'GEOPOLITICAL',
+  narrative_collapse: 'NARRATIVE', competitive_moat: 'MOAT',
+  capital_event: 'CAPITAL',
+};
+
 (async () => {
   try {
     const res = await fetch('/api/observations');
@@ -1675,7 +1855,7 @@ const observationsScript = `
           '<div><label class="text-[10px] text-gray-500 uppercase tracking-wider block mb-1">Why It Matters</label><textarea id="obs-why" class="w-full bg-ekantik-bg border border-ekantik-border rounded-lg px-3 py-2 text-sm text-gray-300 focus:outline-none focus:border-ekantik-gold/50 h-20 resize-none" placeholder="Investment significance..."></textarea></div>' +
           '<div><label class="text-[10px] text-gray-500 uppercase tracking-wider block mb-1">Watch Next</label><textarea id="obs-watch" class="w-full bg-ekantik-bg border border-ekantik-border rounded-lg px-3 py-2 text-sm text-gray-300 focus:outline-none focus:border-ekantik-gold/50 h-20 resize-none" placeholder="What to monitor going forward..."></textarea></div>' +
         '</div>' +
-        '<div class="flex items-center gap-3">' +
+        '<div class="flex items-center gap-3 flex-wrap">' +
           '<input id="obs-tickers" type="text" placeholder="Tickers (comma-separated)" class="bg-ekantik-bg border border-ekantik-border rounded-lg px-3 py-2 text-sm text-gray-300 focus:outline-none focus:border-ekantik-gold/50 w-48" />' +
           '<select id="obs-category" class="bg-ekantik-bg border border-ekantik-border rounded-lg px-3 py-2 text-sm text-gray-300 focus:outline-none focus:border-ekantik-gold/50">' +
             '<option value="">Category</option>' +
@@ -1686,7 +1866,33 @@ const observationsScript = `
             '<option value="competitive">Competitive</option>' +
           '</select>' +
           '<input id="obs-kpi" type="text" placeholder="KPI to track" class="bg-ekantik-bg border border-ekantik-border rounded-lg px-3 py-2 text-sm text-gray-300 focus:outline-none focus:border-ekantik-gold/50 flex-1" />' +
-          '<button onclick="submitObservation()" class="px-4 py-2 bg-ekantik-gold text-ekantik-bg rounded-lg text-sm font-semibold hover:bg-ekantik-gold-light transition-colors"><i class="fas fa-plus mr-1"></i>Add</button>' +
+        '</div>' +
+        // ── Episodic Pivot section ──
+        '<div class="mt-3 pt-3 border-t border-ekantik-border/50">' +
+          '<div class="flex items-center gap-2 mb-2">' +
+            '<label class="flex items-center gap-2 cursor-pointer">' +
+              '<input type="checkbox" id="obs-is-pivot" onchange="toggleObsPivotFields()" class="w-4 h-4 rounded border-ekantik-border bg-ekantik-bg text-amber-500 focus:ring-amber-500 cursor-pointer" />' +
+              '<span class="text-xs font-semibold text-amber-400"><i class="fas fa-bolt mr-1"></i>Potential Episodic Pivot</span>' +
+            '</label>' +
+            '<span class="text-[10px] text-gray-500">— Mark if this observation represents a discrete reality-changing event</span>' +
+          '</div>' +
+          '<div id="obs-pivot-fields" class="hidden grid grid-cols-2 lg:grid-cols-4 gap-3 mt-2">' +
+            '<div><label class="text-[10px] text-gray-500 uppercase tracking-wider block mb-1">Pivot Type</label>' +
+              '<select id="obs-pivot-type" class="w-full bg-ekantik-bg border border-amber-500/30 rounded-lg px-3 py-2 text-sm text-gray-300 focus:outline-none focus:border-amber-500/50">' +
+                pivotTypeOptions.map(o => '<option value="' + o.value + '">' + o.label + '</option>').join('') +
+              '</select></div>' +
+            '<div><label class="text-[10px] text-gray-500 uppercase tracking-wider block mb-1">Magnitude</label>' +
+              '<select id="obs-pivot-magnitude" class="w-full bg-ekantik-bg border border-amber-500/30 rounded-lg px-3 py-2 text-sm text-gray-300 focus:outline-none focus:border-amber-500/50">' +
+                '<option value="">—</option><option value="high">High (&gt;10% repricing)</option><option value="medium">Medium (5-10%)</option><option value="low">Low (&lt;5%)</option>' +
+              '</select></div>' +
+            '<div><label class="text-[10px] text-gray-500 uppercase tracking-wider block mb-1">Catalyst Date</label>' +
+              '<input id="obs-catalyst-date" type="date" class="w-full bg-ekantik-bg border border-amber-500/30 rounded-lg px-3 py-2 text-sm text-gray-300 focus:outline-none focus:border-amber-500/50" /></div>' +
+            '<div><label class="text-[10px] text-gray-500 uppercase tracking-wider block mb-1">Reality Change</label>' +
+              '<input id="obs-reality-change" type="text" placeholder="What changed?" class="w-full bg-ekantik-bg border border-amber-500/30 rounded-lg px-3 py-2 text-sm text-gray-300 focus:outline-none focus:border-amber-500/50" /></div>' +
+          '</div>' +
+        '</div>' +
+        '<div class="mt-3 flex justify-end">' +
+          '<button onclick="submitObservation()" class="px-4 py-2 bg-ekantik-gold text-ekantik-bg rounded-lg text-sm font-semibold hover:bg-ekantik-gold-light transition-colors"><i class="fas fa-plus mr-1"></i>Add Observation</button>' +
         '</div>' +
       '</div>' +
 
@@ -1695,13 +1901,30 @@ const observationsScript = `
         '<div class="space-y-4">' + observations.map(obs => {
           const tickers = obs.ticker_symbols ? JSON.parse(obs.ticker_symbols) : [];
           const catColors = { technology: 'bg-blue-500/20 text-blue-400', consumer_behavior: 'bg-pink-500/20 text-pink-400', regulatory: 'bg-amber-500/20 text-amber-400', macroeconomic: 'bg-cyan-500/20 text-cyan-400', competitive: 'bg-purple-500/20 text-purple-400' };
-          return '<div class="bg-ekantik-card border border-ekantik-border rounded-xl p-5">' +
+
+          // Pivot badge for observations
+          let pivotBadge = '';
+          if (obs.is_potential_pivot) {
+            const magClass = obs.pivot_magnitude === 'high' ? 'text-red-400 bg-red-500/20' : obs.pivot_magnitude === 'medium' ? 'text-amber-400 bg-amber-500/20' : 'text-green-400 bg-green-500/20';
+            const icon = pivotTypeIcons[obs.pivot_type] || '<i class="fas fa-bolt"></i>';
+            const label = pivotTypeLabels[obs.pivot_type] || 'PIVOT';
+            pivotBadge =
+              '<span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[10px] font-bold tracking-wider border border-amber-500/30 bg-amber-500/10 text-amber-400">' +
+                '<i class="fas fa-bolt text-amber-400"></i> PIVOT: ' + icon + ' ' + label +
+              '</span>' +
+              (obs.pivot_magnitude ? '<span class="px-2 py-0.5 rounded text-[10px] font-semibold ' + magClass + '">' + obs.pivot_magnitude.toUpperCase() + '</span>' : '') +
+              (obs.catalyst_date ? '<span class="text-[10px] text-gray-500"><i class="fas fa-calendar mr-1"></i>' + obs.catalyst_date + '</span>' : '');
+          }
+
+          return '<div class="bg-ekantik-card border ' + (obs.is_potential_pivot ? 'border-amber-500/30' : 'border-ekantik-border') + ' rounded-xl p-5">' +
             '<div class="flex items-center gap-2 mb-3 flex-wrap">' +
               (obs.category ? '<span class="px-2 py-0.5 rounded text-[10px] font-bold uppercase ' + (catColors[obs.category] || 'bg-gray-500/20 text-gray-400') + '">' + obs.category.replace('_',' ') + '</span>' : '') +
               tickers.map(t => '<span class="px-2 py-0.5 bg-ekantik-bg rounded text-xs font-mono font-semibold text-white">' + t + '</span>').join('') +
               (obs.is_promoted ? '<span class="px-2 py-0.5 bg-ekantik-gold/20 text-ekantik-gold rounded text-[10px] font-bold"><i class="fas fa-arrow-up mr-1"></i>PROMOTED</span>' : '') +
+              pivotBadge +
               '<span class="ml-auto text-xs text-gray-500">' + obs.created_at + '</span>' +
             '</div>' +
+            (obs.is_potential_pivot && obs.reality_change ? '<p class="text-amber-400/80 text-xs italic mb-3 pl-1"><i class="fas fa-bolt mr-1 text-amber-500"></i>Reality Change: ' + obs.reality_change + '</p>' : '') +
             '<div class="grid grid-cols-1 lg:grid-cols-3 gap-4">' +
               '<div class="border-l-2 border-ekantik-accent pl-3">' +
                 '<h4 class="text-[10px] text-ekantik-accent uppercase tracking-wider font-bold mb-1">This Happened</h4>' +
@@ -1724,6 +1947,11 @@ const observationsScript = `
   } catch(e) { console.error('Observations load failed', e); }
 })();
 
+function toggleObsPivotFields() {
+  const isChecked = document.getElementById('obs-is-pivot').checked;
+  document.getElementById('obs-pivot-fields').classList.toggle('hidden', !isChecked);
+}
+
 async function submitObservation() {
   const happened = document.getElementById('obs-happened').value;
   const why = document.getElementById('obs-why').value;
@@ -1736,11 +1964,26 @@ async function submitObservation() {
 
   const tickers = tickersStr.split(',').map(t => t.trim().toUpperCase()).filter(Boolean);
 
+  // Pivot fields
+  const isPivot = document.getElementById('obs-is-pivot').checked;
+  const pivotType = isPivot ? document.getElementById('obs-pivot-type').value : null;
+  const pivotMagnitude = isPivot ? document.getElementById('obs-pivot-magnitude').value : null;
+  const catalystDate = isPivot ? document.getElementById('obs-catalyst-date').value : null;
+  const realityChange = isPivot ? document.getElementById('obs-reality-change').value : null;
+
   try {
     await fetch('/api/observations', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ happened_text: happened, why_matters: why, watch_next: watch, ticker_symbols: tickers, category, kpi })
+      body: JSON.stringify({
+        happened_text: happened, why_matters: why, watch_next: watch,
+        ticker_symbols: tickers, category, kpi,
+        is_potential_pivot: isPivot,
+        pivot_type: pivotType || undefined,
+        pivot_magnitude: pivotMagnitude || undefined,
+        catalyst_date: catalystDate || undefined,
+        reality_change: realityChange || undefined,
+      })
     });
     location.reload();
   } catch(e) { alert('Error saving observation'); }
@@ -1769,6 +2012,14 @@ function renderJournal() {
   const activeSignals = _signals.filter(s => s.is_active);
   const inactiveSignals = _signals.filter(s => !s.is_active);
 
+  const pivotTypeLabels = {
+    earnings_surprise: 'EARNINGS', regulatory_shift: 'REGULATORY',
+    management_change: 'MGMT CHANGE', product_inflection: 'PRODUCT',
+    macro_regime: 'MACRO', geopolitical: 'GEOPOLITICAL',
+    narrative_collapse: 'NARRATIVE', competitive_moat: 'MOAT',
+    capital_event: 'CAPITAL',
+  };
+
   container.innerHTML =
     // ── Open Positions ──
     '<div class="mb-8">' +
@@ -1778,6 +2029,7 @@ function renderJournal() {
           '<table class="w-full"><thead><tr class="border-b border-ekantik-border">' +
             '<th class="text-left px-4 py-2.5 text-[10px] text-gray-500 uppercase">Ticker</th>' +
             '<th class="text-center px-3 py-2.5 text-[10px] text-gray-500 uppercase">Engine</th>' +
+            '<th class="text-center px-3 py-2.5 text-[10px] text-gray-500 uppercase">Pivot</th>' +
             '<th class="text-right px-3 py-2.5 text-[10px] text-gray-500 uppercase">Entry</th>' +
             '<th class="text-left px-3 py-2.5 text-[10px] text-gray-500 uppercase">Date</th>' +
             '<th class="text-right px-3 py-2.5 text-[10px] text-gray-500 uppercase">Current</th>' +
@@ -1790,9 +2042,19 @@ function renderJournal() {
           openPos.map(p => {
             const pnlColor = (p.pnl_pct||0) >= 0 ? 'text-ekantik-green' : 'text-ekantik-red';
             const engColor = p.engine === 'stocks_leaps' ? 'bg-ekantik-accent/20 text-ekantik-accent' : 'bg-purple-500/20 text-purple-400';
+            // Pivot badge
+            let pivotBadge = '<span class="text-gray-600 text-[10px]">—</span>';
+            try {
+              const pivot = p.episodic_pivot_json ? JSON.parse(p.episodic_pivot_json) : null;
+              if (pivot && pivot.pivot_type) {
+                const magCls = pivot.magnitude === 'high' ? 'bg-red-500/20 text-red-400' : pivot.magnitude === 'medium' ? 'bg-amber-500/20 text-amber-400' : 'bg-green-500/20 text-green-400';
+                pivotBadge = '<span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold border border-amber-500/30 bg-amber-500/10 text-amber-400" title="' + (pivot.event||'').replace(/"/g, '&quot;') + '"><i class="fas fa-bolt"></i> ' + (pivotTypeLabels[pivot.pivot_type] || pivot.pivot_type) + '</span>';
+              }
+            } catch(e) {}
             return '<tr class="border-b border-ekantik-border/30 hover:bg-ekantik-surface/20 group">' +
               '<td class="px-4 py-3 font-mono font-bold text-white">' + p.symbol + '</td>' +
               '<td class="px-3 py-3 text-center"><span class="px-2 py-0.5 rounded text-[10px] font-semibold ' + engColor + '">' + (p.engine==='stocks_leaps'?'Stocks':'Options') + '</span></td>' +
+              '<td class="px-3 py-3 text-center">' + pivotBadge + '</td>' +
               '<td class="px-3 py-3 text-right text-gray-300 text-sm">$' + (p.entry_price||0).toFixed(2) + '</td>' +
               '<td class="px-3 py-3 text-gray-400 text-sm">' + (p.entry_date||'').substring(0,10) + '</td>' +
               '<td class="px-3 py-3 text-right text-white font-semibold text-sm">$' + (p.current_price||0).toFixed(2) + '</td>' +
@@ -1820,7 +2082,23 @@ function renderJournal() {
           const sigColors = { breakout: 'text-ekantik-green border-ekantik-green/50', dislocation: 'text-ekantik-red border-red-500/50', reversal: 'text-ekantik-amber border-amber-500/50', consolidation: 'text-gray-400 border-gray-500/50', episodic_pivot: 'text-purple-400 border-purple-500/50' };
           const col = sigColors[s.signal_type] || 'text-gray-400 border-gray-500/50';
           const rr = s.risk_reward_ratio ? s.risk_reward_ratio.toFixed(1) + ':1' : '—';
-          return '<div class="bg-ekantik-card border border-ekantik-border rounded-xl p-4 group">' +
+          // Pivot context on signal cards
+          let pivotInfo = '';
+          try {
+            const pv = s.episodic_pivot_json ? JSON.parse(s.episodic_pivot_json) : null;
+            if (pv && pv.event) {
+              const magCls = pv.magnitude === 'high' ? 'text-red-400' : pv.magnitude === 'medium' ? 'text-amber-400' : 'text-green-400';
+              pivotInfo = '<div class="mt-2 pt-2 border-t border-ekantik-border/30">' +
+                '<div class="flex items-center gap-2 mb-1">' +
+                  '<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold bg-amber-500/10 text-amber-400 border border-amber-500/30"><i class="fas fa-bolt"></i> ' + (pivotTypeLabels[pv.pivot_type] || 'PIVOT') + '</span>' +
+                  '<span class="text-[10px] font-semibold ' + magCls + '">' + (pv.magnitude||'').toUpperCase() + '</span>' +
+                '</div>' +
+                '<p class="text-[10px] text-gray-400">' + pv.event + '</p>' +
+                (pv.reality_change ? '<p class="text-[10px] text-gray-500 italic mt-0.5">' + pv.reality_change + '</p>' : '') +
+              '</div>';
+            }
+          } catch(e) {}
+          return '<div class="bg-ekantik-card border ' + (s.signal_type === 'episodic_pivot' ? 'border-amber-500/30' : 'border-ekantik-border') + ' rounded-xl p-4 group">' +
             '<div class="flex items-center justify-between mb-2">' +
               '<div class="flex items-center gap-2">' +
                 '<span class="font-mono font-bold text-white text-lg">' + s.symbol + '</span>' +
@@ -1841,6 +2119,7 @@ function renderJournal() {
             '</div>' +
             (s.thesis ? '<p class="text-gray-400 text-xs mb-1">' + s.thesis + '</p>' : '') +
             (s.time_horizon ? '<span class="text-[10px] text-gray-500"><i class="fas fa-clock mr-1"></i>' + s.time_horizon + '</span>' : '') +
+            pivotInfo +
           '</div>';
         }).join('') + '</div>'
       : '<div class="text-center py-8 text-gray-500 bg-ekantik-card border border-ekantik-border rounded-xl">No active signals — click <b>Add Signal</b> to create one.</div>') +
@@ -1903,10 +2182,28 @@ function openAddPositionModal() {
   document.getElementById('pos-stop').value = '';
   document.getElementById('pos-target').value = '';
   document.getElementById('pos-thesis').value = '';
+  // Reset pivot fields
+  document.getElementById('pos-has-pivot').checked = false;
+  document.getElementById('pos-pivot-fields').classList.add('hidden');
+  document.getElementById('pos-pivot-type').value = '';
+  document.getElementById('pos-pivot-magnitude').value = '';
+  document.getElementById('pos-pivot-event').value = '';
+  document.getElementById('pos-pivot-reality').value = '';
   document.getElementById('pos-save-btn').textContent = 'Add Position';
   document.getElementById('position-modal').classList.remove('hidden');
   document.getElementById('position-modal').classList.add('flex');
 }
+
+// Toggle pivot fields in position modal
+document.addEventListener('change', function(e) {
+  if (e.target.id === 'pos-has-pivot') {
+    document.getElementById('pos-pivot-fields').classList.toggle('hidden', !e.target.checked);
+  }
+  // Toggle signal pivot fields when signal_type changes
+  if (e.target.id === 'sig-type') {
+    document.getElementById('sig-pivot-fields').classList.toggle('hidden', e.target.value !== 'episodic_pivot');
+  }
+});
 
 function editPosition(id) {
   const p = _positions.find(x => x.id === id);
@@ -1922,6 +2219,16 @@ function editPosition(id) {
   document.getElementById('pos-stop').value = p.stop_price || '';
   document.getElementById('pos-target').value = p.target_price || '';
   document.getElementById('pos-thesis').value = p.thesis || '';
+  // Load pivot data
+  let pivot = null;
+  try { pivot = p.episodic_pivot_json ? JSON.parse(p.episodic_pivot_json) : null; } catch(e) {}
+  const hasPivot = pivot && pivot.pivot_type;
+  document.getElementById('pos-has-pivot').checked = !!hasPivot;
+  document.getElementById('pos-pivot-fields').classList.toggle('hidden', !hasPivot);
+  document.getElementById('pos-pivot-type').value = (pivot && pivot.pivot_type) || '';
+  document.getElementById('pos-pivot-magnitude').value = (pivot && pivot.magnitude) || '';
+  document.getElementById('pos-pivot-event').value = (pivot && pivot.event) || '';
+  document.getElementById('pos-pivot-reality').value = (pivot && pivot.reality_change) || '';
   document.getElementById('pos-save-btn').textContent = 'Save Changes';
   document.getElementById('position-modal').classList.remove('hidden');
   document.getElementById('position-modal').classList.add('flex');
@@ -1934,6 +2241,7 @@ function closePositionModal() {
 
 async function savePosition() {
   const editId = document.getElementById('pos-edit-id').value;
+  const hasPivot = document.getElementById('pos-has-pivot').checked;
   const payload = {
     symbol: document.getElementById('pos-symbol').value.trim().toUpperCase(),
     engine: document.getElementById('pos-engine').value,
@@ -1943,6 +2251,12 @@ async function savePosition() {
     stop_price: parseFloat(document.getElementById('pos-stop').value) || null,
     target_price: parseFloat(document.getElementById('pos-target').value) || null,
     thesis: document.getElementById('pos-thesis').value.trim() || null,
+    episodic_pivot: hasPivot ? {
+      pivot_type: document.getElementById('pos-pivot-type').value || null,
+      magnitude: document.getElementById('pos-pivot-magnitude').value || null,
+      event: document.getElementById('pos-pivot-event').value.trim() || null,
+      reality_change: document.getElementById('pos-pivot-reality').value.trim() || null,
+    } : null,
   };
   if (!payload.symbol || !payload.entry_price || !payload.entry_date || !payload.size_pct) {
     alert('Please fill in required fields (symbol, entry price, date, size %)');
@@ -2014,6 +2328,11 @@ function openAddSignalModal() {
   document.getElementById('sig-horizon').value = '';
   document.getElementById('sig-thesis').value = '';
   document.getElementById('sig-invalidation').value = '';
+  // Reset pivot fields
+  document.getElementById('sig-pivot-fields').classList.add('hidden');
+  document.getElementById('sig-pivot-event').value = '';
+  document.getElementById('sig-pivot-magnitude').value = '';
+  document.getElementById('sig-pivot-reality').value = '';
   document.getElementById('sig-save-btn').textContent = 'Add Signal';
   document.getElementById('signal-modal').classList.remove('hidden');
   document.getElementById('signal-modal').classList.add('flex');
@@ -2036,6 +2355,14 @@ function editSignal(id) {
   document.getElementById('sig-horizon').value = s.time_horizon || '';
   document.getElementById('sig-thesis').value = s.thesis || '';
   document.getElementById('sig-invalidation').value = s.invalidation_criteria || '';
+  // Load pivot data
+  let pivot = null;
+  try { pivot = s.episodic_pivot_json ? JSON.parse(s.episodic_pivot_json) : null; } catch(e) {}
+  const isPivotSignal = s.signal_type === 'episodic_pivot';
+  document.getElementById('sig-pivot-fields').classList.toggle('hidden', !isPivotSignal);
+  document.getElementById('sig-pivot-event').value = (pivot && pivot.event) || '';
+  document.getElementById('sig-pivot-magnitude').value = (pivot && pivot.magnitude) || '';
+  document.getElementById('sig-pivot-reality').value = (pivot && pivot.reality_change) || '';
   document.getElementById('sig-save-btn').textContent = 'Save Changes';
   document.getElementById('signal-modal').classList.remove('hidden');
   document.getElementById('signal-modal').classList.add('flex');
@@ -2048,9 +2375,10 @@ function closeSignalModal() {
 
 async function saveSignal() {
   const editId = document.getElementById('sig-edit-id').value;
+  const sigType = document.getElementById('sig-type').value;
   const payload = {
     symbol: document.getElementById('sig-symbol').value.trim().toUpperCase(),
-    signal_type: document.getElementById('sig-type').value,
+    signal_type: sigType,
     engine: document.getElementById('sig-engine').value,
     confidence: parseFloat(document.getElementById('sig-confidence').value) || null,
     entry_price: parseFloat(document.getElementById('sig-entry').value) || null,
@@ -2060,6 +2388,12 @@ async function saveSignal() {
     time_horizon: document.getElementById('sig-horizon').value.trim() || null,
     thesis: document.getElementById('sig-thesis').value.trim() || null,
     invalidation_criteria: document.getElementById('sig-invalidation').value.trim() || null,
+    episodic_pivot: sigType === 'episodic_pivot' ? {
+      event: document.getElementById('sig-pivot-event').value.trim() || null,
+      magnitude: document.getElementById('sig-pivot-magnitude').value || null,
+      reality_change: document.getElementById('sig-pivot-reality').value.trim() || null,
+      pivot_type: 'episodic_pivot',
+    } : null,
   };
   if (!payload.symbol || !payload.signal_type || !payload.engine) {
     alert('Please fill in required fields (symbol, signal type, engine)');
