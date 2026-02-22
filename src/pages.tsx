@@ -477,6 +477,14 @@ pageRoutes.get('/settings', (c) => {
           <p class="text-gray-400 text-sm mt-1">Platform configuration and scheduled job management</p>
         </div>
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* ── Slack Integration ── */}
+          <div class="bg-ekantik-card border border-ekantik-border rounded-xl p-6">
+            <h3 class="text-lg font-semibold text-white mb-4"><i class="fab fa-slack mr-2 text-ekantik-gold"></i>Slack Integration</h3>
+            <div id="slack-config-container">
+              <div class="text-center py-4 text-gray-500"><i class="fas fa-spinner fa-spin mr-2"></i>Loading Slack configuration...</div>
+            </div>
+          </div>
+
           <div class="bg-ekantik-card border border-ekantik-border rounded-xl p-6">
             <h3 class="text-lg font-semibold text-white mb-4"><i class="fas fa-sliders-h mr-2 text-ekantik-gold"></i>Portfolio Configuration</h3>
             <div class="space-y-4">
@@ -525,10 +533,19 @@ pageRoutes.get('/settings', (c) => {
               ))}
             </div>
           </div>
+          {/* ── Daily Digest ── */}
+          <div class="bg-ekantik-card border border-ekantik-border rounded-xl p-6">
+            <h3 class="text-lg font-semibold text-white mb-4"><i class="fas fa-newspaper mr-2 text-ekantik-gold"></i>Daily Digest</h3>
+            <p class="text-gray-400 text-sm mb-4">Post a summary of today's research, P&L movers, and portfolio snapshot to Slack.</p>
+            <button onclick="sendDailyDigest(this)" class="px-5 py-2.5 bg-ekantik-gold text-ekantik-bg rounded-lg text-sm font-bold hover:bg-ekantik-gold-light transition-colors flex items-center gap-2">
+              <i class="fas fa-paper-plane"></i> Send Daily Digest Now
+            </button>
+            <div id="digest-status" class="mt-3 text-xs text-gray-500"></div>
+          </div>
         </div>
         <div class="mt-6 bg-ekantik-card border border-ekantik-border rounded-xl p-6">
           <h3 class="text-lg font-semibold text-white mb-4"><i class="fas fa-plug mr-2 text-ekantik-gold"></i>Integration Status</h3>
-          <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          <div class="grid grid-cols-2 lg:grid-cols-4 gap-4" id="integration-grid">
             {[
               { name: 'Claude API', icon: 'fas fa-brain', status: 'Configure', color: 'amber' },
               { name: 'Slack Bot', icon: 'fab fa-slack', status: 'Configure', color: 'amber' },
@@ -548,6 +565,7 @@ pageRoutes.get('/settings', (c) => {
           </div>
         </div>
       </div>
+      <script dangerouslySetInnerHTML={{ __html: settingsScript }} />
     </Layout>,
     { title: 'Settings — Ekantik Capital' }
   )
@@ -631,6 +649,12 @@ const dashboardScript = `
           (r.model_used ? '<span>' + r.model_used + '</span>' : '') +
           (r.cost_estimate ? '<span>$' + r.cost_estimate.toFixed(3) + '</span>' : '') +
         '</div>' +
+        '<div class="mt-3 flex items-center gap-2">' +
+          '<button onclick="event.stopPropagation();shareToSlack(\\'' + r.id + '\\', this)" class="text-gray-500 hover:text-ekantik-gold text-xs px-2 py-1 rounded border border-transparent hover:border-ekantik-gold/30 transition-all flex items-center gap-1.5" title="Share to Slack">' +
+            '<i class="fab fa-slack"></i> Share to Slack' +
+          '</button>' +
+          (r.slack_channel_id ? '<span class="text-[10px] text-gray-600"><i class="fas fa-check-circle text-ekantik-green mr-1"></i>Posted to Slack</span>' : '') +
+        '</div>' +
         '<div class="report-detail hidden mt-4 pt-4 border-t border-ekantik-border">' +
           '<div class="prose prose-invert prose-sm max-w-none text-gray-300 whitespace-pre-wrap text-xs leading-relaxed" style="max-height:400px;overflow-y:auto;">' + escapeHtml(r.raw_markdown || '') + '</div>' +
         '</div>' +
@@ -691,7 +715,10 @@ async function runResearch() {
       return;
     }
 
-    status.textContent = 'Research complete! Reloading feed...';
+    let msg = 'Research complete!';
+    if (data.slackPosted) msg += ' Shared to Slack.';
+    msg += ' Reloading feed...';
+    status.textContent = msg;
     document.getElementById('research-modal').classList.add('hidden');
     setTimeout(() => location.reload(), 500);
 
@@ -699,6 +726,32 @@ async function runResearch() {
     status.textContent = 'Error: ' + e.message;
     btn.disabled = false;
     btn.innerHTML = '<i class="fas fa-play"></i> Execute Research';
+  }
+}
+
+async function shareToSlack(reportId, btnEl) {
+  if (btnEl.disabled) return;
+  btnEl.disabled = true;
+  const origHtml = btnEl.innerHTML;
+  btnEl.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Posting...';
+  try {
+    const res = await fetch('/api/slack/share', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ reportId })
+    });
+    const data = await res.json();
+    if (data.success) {
+      btnEl.innerHTML = '<i class="fas fa-check text-ekantik-green"></i> Shared!';
+      btnEl.classList.add('text-ekantik-green', 'border-ekantik-green/30');
+      setTimeout(() => { btnEl.innerHTML = '<i class="fab fa-slack"></i> Shared'; btnEl.disabled = false; }, 2000);
+    } else {
+      btnEl.innerHTML = '<i class="fas fa-exclamation-triangle text-ekantik-red"></i> ' + (data.error || 'Failed');
+      setTimeout(() => { btnEl.innerHTML = origHtml; btnEl.disabled = false; }, 3000);
+    }
+  } catch(e) {
+    btnEl.innerHTML = '<i class="fas fa-exclamation-triangle text-ekantik-red"></i> Error';
+    setTimeout(() => { btnEl.innerHTML = origHtml; btnEl.disabled = false; }, 3000);
   }
 }
 `
@@ -1031,13 +1084,19 @@ const tickerDetailScript = `
       '<div id="ticker-tab-3" class="hidden">' +
         (data.reports.length > 0 ? '<div class="space-y-3">' + data.reports.map(r => {
           const agentLabels = {material_events:'MATERIAL EVENTS',bias_mode:'BIAS MODE',mag7_monitor:'MAG 7',aomg_scanner:'AOMG',hot_micro:'HOT MICRO',hot_macro:'HOT MACRO',doubler:'DOUBLER',ai_scorer:'AI SCORER'};
-          return '<a href="javascript:void(0)" class="block bg-ekantik-card border border-ekantik-border rounded-lg p-4 hover:border-ekantik-gold/30">' +
+          return '<div class="bg-ekantik-card border border-ekantik-border rounded-lg p-4 hover:border-ekantik-gold/30">' +
             '<div class="flex items-center gap-2">' +
               '<span class="px-2 py-0.5 bg-ekantik-surface text-xs font-bold text-ekantik-gold rounded">' + (agentLabels[r.agent_type]||r.agent_type) + '</span>' +
               (r.impact_score ? '<span class="text-xs ' + (r.impact_score==='H'?'text-red-400':r.impact_score==='M'?'text-amber-400':'text-green-400') + '">Impact: ' + r.impact_score + '</span>' : '') +
               '<span class="text-xs text-gray-500 ml-auto">' + r.created_at + '</span>' +
             '</div>' +
-          '</a>';
+            '<div class="mt-2 flex items-center gap-2">' +
+              '<button onclick="shareToSlack(\\'' + r.id + '\\', this)" class="text-gray-500 hover:text-ekantik-gold text-xs px-2 py-1 rounded border border-transparent hover:border-ekantik-gold/30 transition-all flex items-center gap-1" title="Share to Slack">' +
+                '<i class="fab fa-slack"></i> Share' +
+              '</button>' +
+              (r.slack_channel_id ? '<span class="text-[10px] text-gray-600"><i class="fas fa-check-circle text-ekantik-green mr-1"></i>Shared</span>' : '') +
+            '</div>' +
+          '</div>';
         }).join('') + '</div>' : '<div class="text-center py-8 text-gray-500">No reports found</div>') +
       '</div>';
 
@@ -1054,6 +1113,33 @@ function showTickerTab(el, idx) {
   el.parentElement.querySelectorAll('button').forEach((b, i) => {
     b.className = 'px-4 py-2.5 text-sm font-medium border-b-2 ' + (i === idx ? 'border-ekantik-gold text-ekantik-gold' : 'border-transparent text-gray-400 hover:text-gray-200');
   });
+}
+
+async function shareToSlack(reportId, btnEl) {
+  if (btnEl.disabled) return;
+  btnEl.disabled = true;
+  const origHtml = btnEl.innerHTML;
+  btnEl.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Posting...';
+  try {
+    const res = await fetch('/api/slack/share', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ reportId })
+    });
+    const data = await res.json();
+    if (data.success) {
+      btnEl.innerHTML = '<i class="fas fa-check text-ekantik-green"></i> Shared!';
+      setTimeout(() => { btnEl.innerHTML = '<i class="fab fa-slack"></i> Shared'; btnEl.disabled = false; }, 2000);
+    } else {
+      alert(data.error || 'Failed to share');
+      btnEl.innerHTML = origHtml;
+      btnEl.disabled = false;
+    }
+  } catch(e) {
+    alert('Error: ' + e.message);
+    btnEl.innerHTML = origHtml;
+    btnEl.disabled = false;
+  }
 }
 `
 
@@ -1744,4 +1830,245 @@ async function deleteSignal(id) {
 
 // ── Init ──
 loadJournal();
+`
+
+const settingsScript = `
+let _slackChannels = [];
+let _slackConfig = {};
+
+(async () => {
+  try {
+    const configRes = await fetch('/api/slack/config');
+    _slackConfig = await configRes.json();
+    renderSlackConfig();
+  } catch(e) { 
+    document.getElementById('slack-config-container').innerHTML = '<div class="text-red-400 text-sm">Failed to load Slack config: ' + e.message + '</div>'; 
+  }
+
+  // Update integration status based on slack config
+  try {
+    const diagRes = await fetch('/api/diag/claude');
+    const diag = await diagRes.json();
+    updateIntegrationStatus('Claude API', diag.ok ? 'Connected' : 'Error', diag.ok ? 'green' : 'red');
+  } catch(e) {}
+  if (_slackConfig.botConfigured) {
+    updateIntegrationStatus('Slack Bot', _slackConfig.channelId ? 'Connected' : 'Configured', _slackConfig.channelId ? 'green' : 'amber');
+  }
+})();
+
+function updateIntegrationStatus(name, status, color) {
+  const grid = document.getElementById('integration-grid');
+  if (!grid) return;
+  const cards = grid.querySelectorAll('.bg-ekantik-bg');
+  for (const card of cards) {
+    if (card.textContent.includes(name)) {
+      const statusEl = card.querySelector('div > div:last-child > div:last-child');
+      if (statusEl) {
+        statusEl.textContent = status;
+        statusEl.className = 'text-ekantik-' + color + ' text-xs';
+      }
+    }
+  }
+}
+
+function renderSlackConfig() {
+  const container = document.getElementById('slack-config-container');
+  if (!_slackConfig.botConfigured) {
+    container.innerHTML = 
+      '<div class="bg-ekantik-bg border border-ekantik-border rounded-lg p-4">' +
+        '<div class="flex items-center gap-3 mb-2">' +
+          '<i class="fas fa-exclamation-triangle text-ekantik-amber"></i>' +
+          '<span class="text-white text-sm font-semibold">Slack Bot Token Not Set</span>' +
+        '</div>' +
+        '<p class="text-gray-400 text-xs">Set <code class="bg-ekantik-surface px-1 rounded">SLACK_BOT_TOKEN</code> in Cloudflare Pages secrets to enable Portal → Slack integration.</p>' +
+        '<p class="text-gray-500 text-xs mt-2">Required scopes: <code class="bg-ekantik-surface px-1 rounded">chat:write</code>, <code class="bg-ekantik-surface px-1 rounded">channels:read</code></p>' +
+      '</div>';
+    return;
+  }
+
+  const channelInfo = _slackConfig.channelId
+    ? '<span class="text-ekantik-green text-xs font-semibold"><i class="fas fa-check-circle mr-1"></i>#' + (_slackConfig.channelName || _slackConfig.channelId) + '</span>'
+    : '<span class="text-gray-500 text-xs">Not configured</span>';
+
+  container.innerHTML = 
+    '<div class="space-y-4">' +
+      // Current channel
+      '<div class="flex items-center justify-between py-2 border-b border-ekantik-border">' +
+        '<span class="text-gray-400 text-sm">Posting Channel</span>' +
+        channelInfo +
+      '</div>' +
+      // Auto-post toggle
+      '<div class="flex items-center justify-between py-2 border-b border-ekantik-border">' +
+        '<div>' +
+          '<span class="text-gray-400 text-sm">Auto-post portal research</span>' +
+          '<div class="text-gray-500 text-xs">Automatically post all portal research results to Slack</div>' +
+        '</div>' +
+        '<button onclick="toggleAutoPost(this)" class="px-3 py-1 rounded-full text-xs font-semibold transition-colors ' +
+          (_slackConfig.autoPost ? 'bg-ekantik-green/20 text-ekantik-green' : 'bg-gray-700 text-gray-400') + '">' +
+          (_slackConfig.autoPost ? 'ENABLED' : 'DISABLED') +
+        '</button>' +
+      '</div>' +
+      // Channel picker
+      '<div>' +
+        '<label class="text-xs text-gray-400 uppercase tracking-wider block mb-2">Slack Channel</label>' +
+        '<div class="flex gap-2">' +
+          '<div class="flex-1">' +
+            '<select id="slack-channel-select" class="w-full bg-ekantik-bg border border-ekantik-border rounded-lg px-3 py-2 text-sm text-gray-300 focus:outline-none focus:border-ekantik-gold/50 hidden">' +
+              '<option value="">Loading channels...</option>' +
+            '</select>' +
+            '<input id="slack-channel-input" type="text" placeholder="Channel ID (e.g. C0AH7FWP2JU)" value="' + (_slackConfig.channelId || '') + '" class="w-full bg-ekantik-bg border border-ekantik-border rounded-lg px-3 py-2 text-sm text-gray-300 focus:outline-none focus:border-ekantik-gold/50" />' +
+          '</div>' +
+          '<button onclick="saveSlackChannel()" class="px-4 py-2 bg-ekantik-gold text-ekantik-bg rounded-lg text-sm font-semibold hover:bg-ekantik-gold-light">Save</button>' +
+        '</div>' +
+        '<p class="text-gray-500 text-[10px] mt-1.5">Find channel ID: open Slack channel → click channel name in header → scroll to bottom of popup</p>' +
+        '<div id="slack-save-status" class="mt-2 text-xs text-gray-500"></div>' +
+      '</div>' +
+      // Test message
+      '<div class="pt-2">' +
+        '<button onclick="testSlackPost(this)" class="px-4 py-2 bg-ekantik-surface border border-ekantik-border rounded-lg text-sm text-gray-300 hover:border-ekantik-gold/50 flex items-center gap-2">' +
+          '<i class="fab fa-slack"></i> Send Test Message' +
+        '</button>' +
+      '</div>' +
+    '</div>';
+
+  loadChannels();
+}
+
+async function loadChannels() {
+  const select = document.getElementById('slack-channel-select');
+  const input = document.getElementById('slack-channel-input');
+  try {
+    const res = await fetch('/api/slack/channels');
+    const data = await res.json();
+    if (data.ok && data.channels && data.channels.length > 0) {
+      _slackChannels = data.channels.filter(ch => ch.is_member);
+      if (_slackChannels.length > 0) {
+        // Show dropdown, hide input
+        select.classList.remove('hidden');
+        input.classList.add('hidden');
+        select.innerHTML = '<option value="">— Select a channel —</option>' +
+          _slackChannels.map(ch => 
+            '<option value="' + ch.id + '"' + (ch.id === _slackConfig.channelId ? ' selected' : '') + '>' +
+              (ch.is_private ? ':lock: ' : '#') + ch.name + ' (' + ch.num_members + ' members)' +
+            '</option>'
+          ).join('');
+        return;
+      }
+    }
+    // Fallback: keep manual input visible
+  } catch(e) {
+    // Fallback: keep manual input visible
+  }
+}
+
+async function saveSlackChannel() {
+  const select = document.getElementById('slack-channel-select');
+  const input = document.getElementById('slack-channel-input');
+  // Use dropdown if visible, otherwise use text input
+  const channelId = !select.classList.contains('hidden') ? select.value : input.value.trim();
+  if (!channelId) { alert('Enter a channel ID'); return; }
+
+  const channel = _slackChannels.find(ch => ch.id === channelId);
+  const channelName = channel ? channel.name : channelId;
+
+  const status = document.getElementById('slack-save-status');
+  status.textContent = 'Saving...';
+
+  try {
+    const res = await fetch('/api/slack/config', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ channelId, channelName, autoPost: _slackConfig.autoPost })
+    });
+    const data = await res.json();
+    if (data.success) {
+      _slackConfig.channelId = channelId;
+      _slackConfig.channelName = channelName;
+      status.innerHTML = '<span class="text-ekantik-green"><i class="fas fa-check mr-1"></i>Saved! Channel set to #' + channelName + '</span>';
+      renderSlackConfig();
+    } else {
+      status.innerHTML = '<span class="text-ekantik-red">Error saving</span>';
+    }
+  } catch(e) {
+    status.innerHTML = '<span class="text-ekantik-red">Error: ' + e.message + '</span>';
+  }
+}
+
+async function toggleAutoPost(btn) {
+  const newVal = !_slackConfig.autoPost;
+  try {
+    const res = await fetch('/api/slack/config', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ autoPost: newVal })
+    });
+    const data = await res.json();
+    if (data.success) {
+      _slackConfig.autoPost = newVal;
+      btn.textContent = newVal ? 'ENABLED' : 'DISABLED';
+      btn.className = 'px-3 py-1 rounded-full text-xs font-semibold transition-colors ' +
+        (newVal ? 'bg-ekantik-green/20 text-ekantik-green' : 'bg-gray-700 text-gray-400');
+    }
+  } catch(e) { alert('Error: ' + e.message); }
+}
+
+async function testSlackPost(btn) {
+  if (!_slackConfig.channelId) { alert('Configure a Slack channel first'); return; }
+  btn.disabled = true;
+  btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Sending...';
+  try {
+    // Get the latest report and share it
+    const feedRes = await fetch('/api/research/feed?limit=1');
+    const { reports } = await feedRes.json();
+    if (!reports || reports.length === 0) {
+      alert('No research reports to share. Run a research first.');
+      btn.disabled = false;
+      btn.innerHTML = '<i class="fab fa-slack"></i> Send Test Message';
+      return;
+    }
+    const res = await fetch('/api/slack/share', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ reportId: reports[0].id, channelId: _slackConfig.channelId })
+    });
+    const data = await res.json();
+    if (data.success) {
+      btn.innerHTML = '<i class="fas fa-check text-ekantik-green"></i> Sent!';
+    } else {
+      btn.innerHTML = '<i class="fas fa-times text-ekantik-red"></i> ' + (data.error || 'Failed');
+    }
+  } catch(e) {
+    btn.innerHTML = '<i class="fas fa-times text-ekantik-red"></i> Error';
+  }
+  setTimeout(() => { btn.innerHTML = '<i class="fab fa-slack"></i> Send Test Message'; btn.disabled = false; }, 3000);
+}
+
+async function sendDailyDigest(btn) {
+  if (!_slackConfig.channelId) {
+    alert('Configure a Slack channel in Slack Integration settings first');
+    return;
+  }
+  btn.disabled = true;
+  const origHtml = btn.innerHTML;
+  btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Generating digest...';
+  const status = document.getElementById('digest-status');
+  status.textContent = 'Compiling daily summary...';
+
+  try {
+    const res = await fetch('/api/slack/digest', { method: 'POST' });
+    const data = await res.json();
+    if (data.success) {
+      status.innerHTML = '<span class="text-ekantik-green"><i class="fas fa-check-circle mr-1"></i>Daily digest sent! ' + data.reportCount + ' reports summarized for ' + data.date + '</span>';
+      btn.innerHTML = '<i class="fas fa-check text-ekantik-green mr-2"></i> Digest Sent';
+    } else {
+      status.innerHTML = '<span class="text-ekantik-red"><i class="fas fa-exclamation-circle mr-1"></i>' + (data.error || 'Failed to send') + '</span>';
+      btn.innerHTML = origHtml;
+    }
+  } catch(e) {
+    status.innerHTML = '<span class="text-ekantik-red">Error: ' + e.message + '</span>';
+    btn.innerHTML = origHtml;
+  }
+  btn.disabled = false;
+  setTimeout(() => { btn.innerHTML = origHtml; }, 5000);
+}
 `
