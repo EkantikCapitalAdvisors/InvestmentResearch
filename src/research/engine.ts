@@ -46,35 +46,63 @@ IMPORTANT:
     ? 'claude-sonnet-4-20250514'  // Heavier analysis
     : 'claude-sonnet-4-20250514'  // Standard — use Sonnet for cost efficiency in MVP
 
-  const response = await fetch('https://api.anthropic.com/v1/messages', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'x-api-key': apiKey,
-      'anthropic-version': '2023-06-01',
-      'anthropic-beta': 'web-search-2025-03-05',
-    },
-    body: JSON.stringify({
-      model,
-      max_tokens: 8192,
-      system: systemPrompt,
-      tools: [
-        {
-          type: 'web_search_20250305',
-          name: 'web_search',
-          max_uses: 10,
-        }
-      ],
-      messages: [
-        { role: 'user', content: userMessage }
-      ]
-    })
-  })
+  // Retry logic for rate limits
+  let response: Response | null = null
+  let lastError = ''
+  const maxRetries = 3
 
-  if (!response.ok) {
+  for (let attempt = 0; attempt < maxRetries; attempt++) {
+    if (attempt > 0) {
+      // Wait before retry — exponential backoff: 60s, 90s
+      const waitMs = (attempt + 1) * 60000
+      console.log(`Rate limited. Waiting ${waitMs/1000}s before retry ${attempt + 1}/${maxRetries}...`)
+      await new Promise(resolve => setTimeout(resolve, waitMs))
+    }
+
+    const currentModel = model  // Always use Sonnet — no fallback to avoid model errors
+    const useWebSearch = attempt < 2  // Disable web search on final retry to reduce tokens
+
+    response = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': apiKey,
+        'anthropic-version': '2023-06-01',
+        ...(useWebSearch ? { 'anthropic-beta': 'web-search-2025-03-05' } : {}),
+      },
+      body: JSON.stringify({
+        model: currentModel,
+        max_tokens: useWebSearch ? 8192 : 4096,
+        system: systemPrompt,
+        ...(useWebSearch ? {
+          tools: [
+            {
+              type: 'web_search_20250305',
+              name: 'web_search',
+              max_uses: 3,
+            }
+          ]
+        } : {}),
+        messages: [
+          { role: 'user', content: useWebSearch ? userMessage : userMessage.replace('Use web search to find the latest real data. Search for recent news, filings, and market data.', 'Analyze based on your training knowledge. Provide the most current analysis you can.') }
+        ]
+      })
+    })
+
+    if (response.ok) break
+
     const errorText = await response.text()
-    console.error('Claude API error:', response.status, errorText)
-    throw new Error(`Claude API error ${response.status}: ${errorText}`)
+    lastError = errorText
+    console.error(`Claude API attempt ${attempt + 1} error:`, response.status, errorText.substring(0, 300))
+
+    // Only retry on rate limits (429)
+    if (response.status !== 429) {
+      throw new Error(`Claude API error ${response.status}: ${errorText}`)
+    }
+  }
+
+  if (!response || !response.ok) {
+    throw new Error(`Claude API rate limited after ${maxRetries} retries: ${lastError.substring(0, 300)}`)
   }
 
   const data: any = await response.json()
