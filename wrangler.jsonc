@@ -7,8 +7,8 @@
   "d1_databases": [
     {
       "binding": "DB",
-      "database_name": "webapp-production",
-      "database_id": "local-dev-db"
+      "database_name": "ekantik-research-db",
+      "database_id": "c9403ea4-0de7-4fca-af9e-be0ba29fc8f2"
     }
   ]
   // Secrets (set via wrangler secret put):
