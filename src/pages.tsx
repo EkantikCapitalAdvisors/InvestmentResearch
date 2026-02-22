@@ -36,6 +36,20 @@ pageRoutes.get('/', (c) => {
               <option value="M">Medium</option>
               <option value="L">Low</option>
             </select>
+            <select id="filter-date" class="bg-ekantik-bg border border-ekantik-border rounded-lg px-3 py-2 text-sm text-gray-300 focus:outline-none focus:border-ekantik-gold/50">
+              <option value="">All Time</option>
+              <option value="today">Today</option>
+              <option value="7d">Last 7 Days</option>
+              <option value="30d">Last 30 Days</option>
+              <option value="90d">Last 90 Days</option>
+              <option value="custom">Custom Range...</option>
+            </select>
+            {/* Custom date range inputs — hidden until "Custom Range" is selected */}
+            <div id="custom-date-range" class="hidden flex items-center gap-2">
+              <input id="filter-date-from" type="date" class="bg-ekantik-bg border border-ekantik-border rounded-lg px-2 py-2 text-sm text-gray-300 focus:outline-none focus:border-ekantik-gold/50" />
+              <span class="text-gray-500 text-xs">to</span>
+              <input id="filter-date-to" type="date" class="bg-ekantik-bg border border-ekantik-border rounded-lg px-2 py-2 text-sm text-gray-300 focus:outline-none focus:border-ekantik-gold/50" />
+            </div>
             <button onclick="document.getElementById('research-modal').classList.remove('hidden')" class="px-4 py-2 bg-ekantik-gold text-ekantik-bg rounded-lg text-sm font-semibold hover:bg-ekantik-gold-light transition-colors flex items-center gap-2">
               <i class="fas fa-bolt"></i> Run Research
             </button>
@@ -654,10 +668,32 @@ const impactColors = { H: 'bg-red-500/20 text-red-400', M: 'bg-amber-500/20 text
 const impactEmoji = { H: '<i class="fas fa-circle text-red-500 text-[8px]"></i>', M: '<i class="fas fa-circle text-amber-500 text-[8px]"></i>', L: '<i class="fas fa-circle text-green-500 text-[8px]"></i>' };
 const triggerIcons = { slack: 'fab fa-slack', cron: 'fas fa-clock', event: 'fas fa-bolt', portal: 'fas fa-globe', manual: 'fas fa-user' };
 
+// ── Resolve date filter to from/to ISO strings ──────────
+function resolveDateRange(preset) {
+  if (!preset || preset === 'custom') return { from: null, to: null };
+  const now = new Date();
+  const to = now.toISOString().split('T')[0];
+  let from = to;
+  if (preset === 'today') {
+    from = to;
+  } else if (preset === '7d') {
+    const d = new Date(now); d.setDate(d.getDate() - 7);
+    from = d.toISOString().split('T')[0];
+  } else if (preset === '30d') {
+    const d = new Date(now); d.setDate(d.getDate() - 30);
+    from = d.toISOString().split('T')[0];
+  } else if (preset === '90d') {
+    const d = new Date(now); d.setDate(d.getDate() - 90);
+    from = d.toISOString().split('T')[0];
+  }
+  return { from, to };
+}
+
 // ── Load feed with filters ────────────────────────────────
 async function loadFeed() {
   const agentFilter = document.getElementById('filter-agent').value;
   const impactFilter = document.getElementById('filter-impact').value;
+  const datePreset = document.getElementById('filter-date').value;
   const container = document.getElementById('research-feed');
 
   // Show loading state
@@ -668,6 +704,19 @@ async function loadFeed() {
     const params = new URLSearchParams();
     if (agentFilter) params.set('agent', agentFilter);
     if (impactFilter) params.set('impact', impactFilter);
+
+    // Date range
+    if (datePreset === 'custom') {
+      const fromVal = document.getElementById('filter-date-from').value;
+      const toVal = document.getElementById('filter-date-to').value;
+      if (fromVal) params.set('from', fromVal);
+      if (toVal) params.set('to', toVal);
+    } else if (datePreset) {
+      const { from, to } = resolveDateRange(datePreset);
+      if (from) params.set('from', from);
+      if (to) params.set('to', to);
+    }
+
     params.set('limit', '50');
     const qs = params.toString();
 
@@ -675,7 +724,7 @@ async function loadFeed() {
     const { reports } = await feedRes.json();
 
     if (!reports || reports.length === 0) {
-      const filterActive = agentFilter || impactFilter;
+      const filterActive = agentFilter || impactFilter || datePreset;
       container.innerHTML = '<div class="text-center py-12 text-gray-500"><i class="fas fa-' + (filterActive ? 'filter' : 'inbox') + ' text-3xl mb-3"></i><p>' + (filterActive ? 'No reports match the selected filters. Try adjusting or clearing the filter.' : 'No research reports yet. Reports will appear here as they are generated.') + '</p>' + (filterActive ? '<button onclick="clearFilters()" class="mt-3 px-4 py-2 bg-ekantik-surface border border-ekantik-border rounded-lg text-sm text-gray-300 hover:border-ekantik-gold/50 transition-colors"><i class="fas fa-times mr-1"></i>Clear Filters</button>' : '') + '</div>';
       return;
     }
@@ -724,12 +773,28 @@ async function loadFeed() {
 function clearFilters() {
   document.getElementById('filter-agent').value = '';
   document.getElementById('filter-impact').value = '';
+  document.getElementById('filter-date').value = '';
+  document.getElementById('filter-date-from').value = '';
+  document.getElementById('filter-date-to').value = '';
+  document.getElementById('custom-date-range').classList.add('hidden');
   loadFeed();
 }
 
 // ── Wire up filter dropdowns ──────────────────────────────
 document.getElementById('filter-agent').addEventListener('change', loadFeed);
 document.getElementById('filter-impact').addEventListener('change', loadFeed);
+document.getElementById('filter-date').addEventListener('change', function() {
+  const customRange = document.getElementById('custom-date-range');
+  if (this.value === 'custom') {
+    customRange.classList.remove('hidden');
+    // Don't auto-reload — wait for user to pick dates
+  } else {
+    customRange.classList.add('hidden');
+    loadFeed();
+  }
+});
+document.getElementById('filter-date-from').addEventListener('change', loadFeed);
+document.getElementById('filter-date-to').addEventListener('change', loadFeed);
 
 // ── Initial load ──────────────────────────────────────────
 (async () => {

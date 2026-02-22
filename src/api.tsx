@@ -173,6 +173,8 @@ apiRoutes.get('/research/feed', async (c) => {
   const agent = c.req.query('agent')
   const impact = c.req.query('impact')
   const ticker = c.req.query('ticker')
+  const from = c.req.query('from')   // ISO date string e.g. 2026-02-20
+  const to = c.req.query('to')       // ISO date string e.g. 2026-02-22
   const limit = parseInt(c.req.query('limit') || '20')
   const offset = parseInt(c.req.query('offset') || '0')
 
@@ -182,6 +184,8 @@ apiRoutes.get('/research/feed', async (c) => {
   if (agent) { sql += ' AND agent_type = ?'; params.push(agent) }
   if (impact) { sql += ' AND impact_score = ?'; params.push(impact) }
   if (ticker) { sql += ' AND ticker_symbols LIKE ?'; params.push(`%${ticker}%`) }
+  if (from) { sql += ' AND created_at >= ?'; params.push(from + ' 00:00:00') }
+  if (to) { sql += ' AND created_at <= ?'; params.push(to + ' 23:59:59') }
 
   sql += ' ORDER BY created_at DESC LIMIT ? OFFSET ?'
   params.push(limit, offset)
