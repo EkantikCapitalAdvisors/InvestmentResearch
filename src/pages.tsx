@@ -225,6 +225,9 @@ pageRoutes.get('/watchlist', (c) => {
             <p class="text-gray-400 text-sm mt-1">Active surveillance on all tracked tickers with AI scoring</p>
           </div>
           <div class="flex items-center gap-3">
+            <button onclick="document.getElementById('bulk-import-modal').classList.remove('hidden')" class="px-4 py-2 bg-ekantik-surface border border-ekantik-border rounded-lg text-sm font-semibold text-gray-300 hover:border-ekantik-accent/50 hover:text-ekantik-accent transition-colors flex items-center gap-2">
+              <i class="fas fa-file-import"></i> Bulk Import
+            </button>
             <button onclick="document.getElementById('add-ticker-modal').classList.remove('hidden')" class="px-4 py-2 bg-ekantik-accent/20 text-ekantik-accent border border-ekantik-accent/30 rounded-lg text-sm font-semibold hover:bg-ekantik-accent/30 transition-colors flex items-center gap-2">
               <i class="fas fa-plus"></i> Add Ticker
             </button>
@@ -255,6 +258,42 @@ pageRoutes.get('/watchlist', (c) => {
                 {/* Filled dynamically by lookupTicker() */}
               </div>
               <div id="add-status" class="text-xs text-gray-500"></div>
+            </div>
+          </div>
+        </div>
+
+        {/* Bulk Import Modal */}
+        <div id="bulk-import-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" onclick="if(event.target===this)closeBulkImportModal()">
+          <div class="bg-ekantik-card border border-ekantik-border rounded-2xl p-6 w-full max-w-lg shadow-2xl">
+            <div class="flex items-center justify-between mb-4">
+              <h3 class="text-lg font-bold text-white"><i class="fas fa-file-import mr-2 text-ekantik-accent"></i>Bulk Import Watchlist</h3>
+              <button onclick="closeBulkImportModal()" class="text-gray-400 hover:text-white"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="space-y-4">
+              <div>
+                <label class="text-xs text-gray-400 uppercase tracking-wider block mb-2">Ticker Symbols</label>
+                <textarea id="bulk-import-input" rows={6} placeholder={"Paste tickers separated by commas, spaces, or new lines.\n\nExamples:\nNVDA, AAPL, MSFT, GOOG, AMZN\n\nor one per line:\nNVDA\nAAPL\nMSFT"} class="w-full bg-ekantik-bg border border-ekantik-border rounded-lg px-3 py-2.5 text-sm text-gray-300 uppercase font-mono focus:outline-none focus:border-ekantik-gold/50 resize-none"></textarea>
+                <div class="flex items-center justify-between mt-1">
+                  <span id="bulk-import-count" class="text-xs text-gray-500">0 tickers detected</span>
+                  <button onclick="document.getElementById('bulk-import-input').value='';updateBulkCount()" class="text-xs text-gray-500 hover:text-gray-300"><i class="fas fa-eraser mr-1"></i>Clear</button>
+                </div>
+              </div>
+              <div id="bulk-import-progress" class="hidden space-y-2">
+                <div class="flex items-center justify-between text-xs">
+                  <span class="text-gray-400" id="bulk-progress-label">Importing...</span>
+                  <span class="text-gray-400" id="bulk-progress-pct">0%</span>
+                </div>
+                <div class="w-full bg-ekantik-bg rounded-full h-2 overflow-hidden">
+                  <div id="bulk-progress-bar" class="bg-ekantik-accent h-full rounded-full transition-all duration-300" style="width: 0%"></div>
+                </div>
+              </div>
+              <div id="bulk-import-results" class="hidden"></div>
+              <div class="flex items-center justify-between pt-2">
+                <span id="bulk-import-status" class="text-xs text-gray-500"></span>
+                <button onclick="executeBulkImport()" id="bulk-import-btn" class="px-5 py-2.5 bg-ekantik-accent text-white rounded-lg text-sm font-bold hover:bg-ekantik-accent/80 transition-colors flex items-center gap-2">
+                  <i class="fas fa-upload"></i> Import All
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -1290,6 +1329,136 @@ async function removeTicker(symbol) {
       alert(data.error || 'Failed to remove');
     }
   } catch(e) { alert('Error: ' + e.message); }
+}
+
+// ── Bulk Import Functions ──────────────────────────────────────
+function parseBulkSymbols() {
+  const raw = document.getElementById('bulk-import-input').value;
+  const symbols = raw.split(/[,\\n\\r\\t;|\\s]+/).map(s => s.toUpperCase().replace(/[^A-Z]/g, '')).filter(s => s.length >= 1 && s.length <= 5);
+  return [...new Set(symbols)];
+}
+
+function updateBulkCount() {
+  const symbols = parseBulkSymbols();
+  const countEl = document.getElementById('bulk-import-count');
+  countEl.textContent = symbols.length + ' ticker' + (symbols.length !== 1 ? 's' : '') + ' detected';
+  countEl.classList.toggle('text-ekantik-accent', symbols.length > 0);
+  countEl.classList.toggle('text-gray-500', symbols.length === 0);
+}
+
+// Live counter on input
+document.getElementById('bulk-import-input')?.addEventListener('input', updateBulkCount);
+
+function closeBulkImportModal() {
+  document.getElementById('bulk-import-modal').classList.add('hidden');
+  document.getElementById('bulk-import-input').value = '';
+  document.getElementById('bulk-import-progress').classList.add('hidden');
+  document.getElementById('bulk-import-results').classList.add('hidden');
+  document.getElementById('bulk-import-results').innerHTML = '';
+  document.getElementById('bulk-import-status').textContent = '';
+  document.getElementById('bulk-import-btn').disabled = false;
+  document.getElementById('bulk-import-btn').innerHTML = '<i class="fas fa-upload mr-1"></i> Import All';
+  updateBulkCount();
+}
+
+async function executeBulkImport() {
+  const symbols = parseBulkSymbols();
+  if (symbols.length === 0) {
+    document.getElementById('bulk-import-status').textContent = 'No valid tickers to import';
+    return;
+  }
+  if (symbols.length > 100) {
+    document.getElementById('bulk-import-status').textContent = 'Maximum 100 tickers per import';
+    return;
+  }
+
+  const btn = document.getElementById('bulk-import-btn');
+  const statusEl = document.getElementById('bulk-import-status');
+  const progressDiv = document.getElementById('bulk-import-progress');
+  const progressBar = document.getElementById('bulk-progress-bar');
+  const progressLabel = document.getElementById('bulk-progress-label');
+  const progressPct = document.getElementById('bulk-progress-pct');
+  const resultsDiv = document.getElementById('bulk-import-results');
+
+  btn.disabled = true;
+  btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i> Importing...';
+  statusEl.textContent = '';
+  progressDiv.classList.remove('hidden');
+  resultsDiv.classList.add('hidden');
+  progressBar.style.width = '10%';
+  progressLabel.textContent = 'Importing ' + symbols.length + ' tickers...';
+  progressPct.textContent = '0%';
+
+  try {
+    // Animate progress to ~40% while waiting
+    progressBar.style.width = '40%';
+    progressPct.textContent = '40%';
+
+    const res = await fetch('/api/watchlist/bulk-import', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ symbols })
+    });
+
+    progressBar.style.width = '80%';
+    progressPct.textContent = '80%';
+
+    const data = await res.json();
+
+    progressBar.style.width = '100%';
+    progressPct.textContent = '100%';
+    progressLabel.textContent = 'Complete!';
+
+    if (!res.ok) {
+      statusEl.textContent = data.error || 'Import failed';
+      btn.disabled = false;
+      btn.innerHTML = '<i class="fas fa-upload mr-1"></i> Retry';
+      return;
+    }
+
+    // Show results summary
+    const s = data.summary;
+    let html = '<div class="bg-ekantik-bg border border-ekantik-border rounded-lg p-4 space-y-3">';
+    html += '<div class="grid grid-cols-3 gap-3 text-center">';
+    html += '<div><div class="text-xl font-bold text-ekantik-green">' + s.added + '</div><div class="text-[10px] text-gray-500 uppercase">Added</div></div>';
+    html += '<div><div class="text-xl font-bold text-ekantik-amber">' + s.already_on_watchlist + '</div><div class="text-[10px] text-gray-500 uppercase">Already</div></div>';
+    html += '<div><div class="text-xl font-bold text-ekantik-red">' + s.failed + '</div><div class="text-[10px] text-gray-500 uppercase">Failed</div></div>';
+    html += '</div>';
+
+    // Show failures if any
+    const failures = data.results.filter(function(r) { return r.status === 'failed'; });
+    if (failures.length > 0) {
+      html += '<div class="border-t border-ekantik-border pt-2">';
+      html += '<p class="text-xs text-gray-400 mb-1">Failed tickers:</p>';
+      html += '<div class="flex flex-wrap gap-1">';
+      failures.forEach(function(f) {
+        html += '<span class="px-2 py-0.5 bg-red-500/10 text-red-400 rounded text-xs font-mono" title="' + (f.error || '').replace(/"/g, '&quot;') + '">' + f.symbol + '</span>';
+      });
+      html += '</div></div>';
+    }
+    html += '</div>';
+
+    resultsDiv.innerHTML = html;
+    resultsDiv.classList.remove('hidden');
+
+    if (s.added > 0) {
+      btn.innerHTML = '<i class="fas fa-check mr-1"></i> Done — Reloading...';
+      btn.classList.remove('bg-ekantik-accent');
+      btn.classList.add('bg-ekantik-green');
+      setTimeout(function() { closeBulkImportModal(); location.reload(); }, 1500);
+    } else {
+      btn.disabled = false;
+      btn.innerHTML = '<i class="fas fa-upload mr-1"></i> Import All';
+      statusEl.textContent = 'No new tickers were added';
+    }
+  } catch(e) {
+    statusEl.textContent = 'Error: ' + e.message;
+    btn.disabled = false;
+    btn.innerHTML = '<i class="fas fa-upload mr-1"></i> Retry';
+    progressBar.style.width = '100%';
+    progressBar.classList.remove('bg-ekantik-accent');
+    progressBar.classList.add('bg-red-500');
+  }
 }
 
 async function runWlResearch() {

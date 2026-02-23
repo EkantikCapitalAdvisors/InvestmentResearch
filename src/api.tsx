@@ -314,6 +314,84 @@ apiRoutes.post('/watchlist/remove', async (c) => {
   return c.json({ success: true, symbol: sym })
 })
 
+// Bulk import tickers to watchlist (accepts array of symbols or comma/newline-separated string)
+apiRoutes.post('/watchlist/bulk-import', async (c) => {
+  const body = await c.req.json()
+  let symbols: string[] = []
+
+  if (Array.isArray(body.symbols)) {
+    symbols = body.symbols
+  } else if (typeof body.symbols === 'string') {
+    // Accept comma, newline, space, tab, semicolon separated
+    symbols = body.symbols.split(/[,\n\r\t;|\s]+/).filter(Boolean)
+  } else {
+    return c.json({ error: 'symbols is required (array or comma-separated string)' }, 400)
+  }
+
+  // Clean & validate symbols
+  symbols = [...new Set(symbols.map(s => s.toUpperCase().replace(/[^A-Z]/g, '')).filter(s => s.length >= 1 && s.length <= 5))]
+
+  if (symbols.length === 0) {
+    return c.json({ error: 'No valid ticker symbols provided' }, 400)
+  }
+  if (symbols.length > 100) {
+    return c.json({ error: 'Maximum 100 symbols per import' }, 400)
+  }
+
+  const results: { symbol: string; status: 'added' | 'exists' | 'failed'; error?: string }[] = []
+
+  for (const sym of symbols) {
+    try {
+      // Check if ticker already exists
+      const existing = await c.env.DB.prepare('SELECT * FROM tickers WHERE symbol = ?').bind(sym).first() as any
+
+      if (existing) {
+        if (existing.is_watchlist) {
+          results.push({ symbol: sym, status: 'exists' })
+          continue
+        }
+        // Enable watchlist flag
+        await c.env.DB.prepare(
+          'UPDATE tickers SET is_watchlist = 1, added_to_watchlist_at = datetime(\'now\'), updated_at = datetime(\'now\') WHERE id = ?'
+        ).bind(existing.id).run()
+        results.push({ symbol: sym, status: 'added' })
+        continue
+      }
+
+      // New ticker — fetch from Yahoo
+      const profile = await fetchTickerProfile(sym)
+      if (!profile) {
+        results.push({ symbol: sym, status: 'failed', error: 'Not found on Yahoo Finance' })
+        continue
+      }
+
+      const id = 'tk-' + sym.toLowerCase()
+      await c.env.DB.prepare(`
+        INSERT INTO tickers (id, symbol, name, sector, industry, is_mag7, is_watchlist, last_price, price_change_pct, market_cap, forward_pe, added_to_watchlist_at)
+        VALUES (?, ?, ?, ?, ?, 0, 1, ?, ?, ?, ?, datetime('now'))
+      `).bind(
+        id, profile.symbol, profile.longName || profile.shortName,
+        profile.sector, profile.industry,
+        profile.price, profile.changePercent,
+        profile.marketCap, profile.forwardPE
+      ).run()
+      results.push({ symbol: sym, status: 'added' })
+    } catch (e: any) {
+      results.push({ symbol: sym, status: 'failed', error: e.message || 'Unknown error' })
+    }
+  }
+
+  const added = results.filter(r => r.status === 'added').length
+  const existed = results.filter(r => r.status === 'exists').length
+  const failed = results.filter(r => r.status === 'failed').length
+
+  return c.json({
+    success: true,
+    summary: { total: symbols.length, added, already_on_watchlist: existed, failed },
+    results
+  })
+})
+
 // Search Yahoo for a ticker (validate before adding)
 apiRoutes.get('/watchlist/lookup/:symbol', async (c) => {
   const sym = c.req.param('symbol').toUpperCase().trim()
