@@ -42,7 +42,7 @@ IMPORTANT:
 4. Be specific with numbers, dates, and sources.`
 
   // Select model — use Sonnet for routine, Opus for deep analysis
-  const model = ['bias_mode', 'doubler', 'aomg_scanner'].includes(agentType) 
+  const model = ['bias_mode', 'doubler', 'aomg_scanner', 'disruption'].includes(agentType) 
     ? 'claude-sonnet-4-20250514'  // Heavier analysis
     : 'claude-sonnet-4-20250514'  // Standard — use Sonnet for cost efficiency in MVP
 

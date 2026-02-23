@@ -30,6 +30,7 @@ pageRoutes.get('/', (c) => {
               <option value="ai_scorer">AI Scorer</option>
               <option value="social_sentiment">Social Sentiment</option>
               <option value="episodic_pivot">Episodic Pivot</option>
+              <option value="disruption">Disruption</option>
             </select>
             <select id="filter-impact" class="bg-ekantik-bg border border-ekantik-border rounded-lg px-3 py-2 text-sm text-gray-300 focus:outline-none focus:border-ekantik-gold/50">
               <option value="">All Impact</option>
@@ -94,6 +95,7 @@ pageRoutes.get('/', (c) => {
                   <option value="doubler">Doubling Potential Analysis</option>
                   <option value="social_sentiment">Social Sentiment Scanner</option>
                   <option value="episodic_pivot">Episodic Pivot Scanner</option>
+                  <option value="disruption">Disruption & Superlative Detection</option>
                 </select>
               </div>
               <div>
@@ -138,6 +140,7 @@ pageRoutes.get('/', (c) => {
                     <option value="aomg_scanner">AOMG Growth Scanner</option>
                     <option value="social_sentiment">Social Sentiment Scanner</option>
                     <option value="episodic_pivot">Episodic Pivot Scanner</option>
+                    <option value="disruption">Disruption & Superlative Detection</option>
                   </select>
                 </div>
                 <div>
@@ -315,6 +318,7 @@ pageRoutes.get('/watchlist', (c) => {
                   <option value="doubler">Doubling Potential Analysis</option>
                   <option value="social_sentiment">Social Sentiment Scanner</option>
                   <option value="episodic_pivot">Episodic Pivot Scanner</option>
+                  <option value="disruption">Disruption & Superlative Detection</option>
                 </select>
               </div>
               <div>
@@ -774,6 +778,7 @@ const agentLabels = {
   portfolio_heat: 'PORTFOLIO HEAT',
   social_sentiment: 'SOCIAL SENTIMENT',
   episodic_pivot: 'EPISODIC PIVOT',
+  disruption: 'DISRUPTION',
 };
 const agentColors = {
   material_events: 'bg-blue-500/20 text-blue-400',
@@ -786,6 +791,7 @@ const agentColors = {
   ai_scorer: 'bg-indigo-500/20 text-indigo-400',
   social_sentiment: 'bg-teal-500/20 text-teal-400',
   episodic_pivot: 'bg-amber-500/20 text-amber-400',
+  disruption: 'bg-emerald-500/20 text-emerald-400',
 };
 const impactColors = { H: 'bg-red-500/20 text-red-400', M: 'bg-amber-500/20 text-amber-400', L: 'bg-green-500/20 text-green-400' };
 const impactEmoji = { H: '<i class="fas fa-circle text-red-500 text-[8px]"></i>', M: '<i class="fas fa-circle text-amber-500 text-[8px]"></i>', L: '<i class="fas fa-circle text-green-500 text-[8px]"></i>' };
@@ -1010,7 +1016,7 @@ async function runResearch() {
   const tickers = tickersStr.toUpperCase().split(/[\\s,]+/).filter(t => /^[A-Z]{1,5}$/.test(t));
 
   if (!agent) { alert('Please select an agent'); return; }
-  if (['material_events','bias_mode','ai_scorer','doubler'].includes(agent) && tickers.length === 0) {
+  if (['material_events','bias_mode','ai_scorer','doubler','disruption'].includes(agent) && tickers.length === 0) {
     alert('This agent requires at least one ticker symbol'); return;
   }
 

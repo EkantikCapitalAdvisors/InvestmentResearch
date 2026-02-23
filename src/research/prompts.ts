@@ -2402,7 +2402,807 @@ This skill fails when:
 ✗ The output reads like a news summary rather than investment intelligence
 ✗ Primary sources are not fetched for HIGH CONVICTION pivots (conviction should be downgraded if unfetched)
 
-DELIVERABLE: Produce the full output format as specified in the skill documentation above. For SCAN mode, execute ALL 8 search categories, include both bullish and bearish pivots, and provide the upcoming catalyst calendar. For ANALYZE mode, include the full Catalyst Deep Dive, Earnings Impact Assessment, Framework Alignment, Trade Construction with entry/stop/targets, and Risk Factors. Every pivot must pass the 5-question Validation Framework and False Pivot Detection Checklist.`
+DELIVERABLE: Produce the full output format as specified in the skill documentation above. For SCAN mode, execute ALL 8 search categories, include both bullish and bearish pivots, and provide the upcoming catalyst calendar. For ANALYZE mode, include the full Catalyst Deep Dive, Earnings Impact Assessment, Framework Alignment, Trade Construction with entry/stop/targets, and Risk Factors. Every pivot must pass the 5-question Validation Framework and False Pivot Detection Checklist.`,
+
+  disruption: `You are running the DISRUPTION & SUPERLATIVE PRODUCT DETECTION agent.
+
+# Disruption & Superlative Product Detection System
+
+## Core Mission
+
+Systematically evaluate whether stocks on a watchlist possess **genuinely disruptive or superlative products** that (a) form a **material portion of revenue** (≥25% of total company revenue) and (b) can **sustain above-market earnings growth** for 3+ years. This skill is the operational engine for **Step 2 of the Ekantik 5-Step Framework** — Track Disruption & Superlative Products.
+
+The critical distinction this skill makes: many companies have innovative products, but only those where the disruptive/superlative product represents a **material revenue driver** create the sustained earnings trajectory that translates into stock price appreciation. An iPad is innovative but immaterial to Apple's earnings story; the iPhone is both superlative AND the dominant revenue engine — that's what this skill identifies.
+
+**Dual-Product Assessment Principle:** Some companies have a current primary product with eroding advantages AND an emerging product with massive disruption potential (e.g., Tesla: automotive declining → FSD/Robotaxi pre-revenue). In such cases, the skill assesses BOTH independently, weights by revenue materiality, and applies a **Forward Disruption Optionality (FDO)** modifier when the emerging product meets specific criteria (see FDO section below). This prevents both errors: overweighting speculative future products AND ignoring genuine inflection points.
+
+## Two Operating Modes
+
+### SCAN Mode
+**Trigger:** User provides a watchlist of tickers or asks to screen a sector for disruption/superlative signals.
+**Output:** Ranked watchlist with disruption/superlative scores, revenue materiality flags, and priority tiers for deeper analysis.
+**Depth:** Moderate — enough to rank and prioritize, not enough for investment decisions.
+
+### ASSESS Mode
+**Trigger:** User asks to evaluate a specific ticker's disruption/superlative product profile in depth.
+**Output:** Full six-dimension assessment with composite score, earnings sustainability projection, and portfolio implications.
+**Depth:** Institutional-grade — suitable for investment committee review.
+
+---
+
+## Foundational Concepts
+
+### What Makes a Product "Disruptive"
+
+A product is disruptive when it fundamentally changes the competitive dynamics of its market, making existing solutions obsolete or dramatically inferior. Disruption is NOT incremental improvement — it is a step-function change in value delivery.
+
+**True Disruption Criteria (ALL must be met):**
+1. Creates a new market category OR redefines an existing one so completely that incumbents cannot compete on the old basis
+2. Demonstrates a performance advantage of ≥3x on the metric that matters most to customers (speed, cost, convenience, accuracy)
+3. Exhibits a self-reinforcing advantage (network effects, data flywheel, ecosystem lock-in) that widens over time rather than eroding
+4. Forces competitors to fundamentally restructure their business models, not just iterate
+
+**Examples of True Disruption:**
+- Tesla's autonomous driving software: autonomous capability powered by proprietary data from millions of vehicles creates a flywheel competitors cannot replicate without equivalent fleet scale
+- Amazon's logistics network: instant delivery infrastructure built over decades with billions in sunk cost creates a moat that is literally impossible for new entrants to replicate
+- NVIDIA's CUDA ecosystem: developer lock-in through software tooling means switching to AMD/Intel AI chips requires rewriting millions of lines of code
+
+**Examples of False Disruption (incremental improvement sold as disruption):**
+- A faster chip in the same architecture family (improvement, not disruption)
+- A streaming service with slightly better content (competition, not disruption)
+- A SaaS tool that is 20% cheaper than alternatives (price competition, not disruption)
+
+### What Makes a Product "Superlative"
+
+A superlative product is the **objectively best product** in its category on the dimensions that matter most to customers. It doesn't need to create a new market — it simply needs to be so clearly superior that rational customers have no reason to choose alternatives.
+
+**Superlative Product Criteria (≥3 must be met):**
+1. **Performance superiority:** Measurably outperforms competitors on the primary value metric by ≥50%
+2. **Functionality breadth:** Offers more useful functions for the intended purpose than any alternative
+3. **Cost efficiency:** Delivers comparable or superior value at comparable or lower total cost of ownership
+4. **Aesthetic/UX advantage:** Subjective preference data shows ≥60% consumer preference in blind testing
+5. **Ecosystem integration:** Product coupling with complementary products creates switching costs ≥\$10K or ≥6 months of migration effort for enterprise customers
+
+**Examples of Superlative Products:**
+- iPhone: best-in-class ecosystem integration (switching costs), premium aesthetics, massive app developer base (network effect)
+- Google Search: objectively superior relevance powered by 90%+ market share data advantage, coupled with Maps/Gmail/Drive ecosystem
+- AWS: broadest service portfolio (200+ services), deepest enterprise integration, largest developer community
+
+### Revenue Materiality — The Make-or-Break Filter
+
+A product can be both disruptive AND superlative and still be irrelevant to the investment thesis if it doesn't drive material revenue. This is the most common failure mode in disruption analysis — getting excited about a side project.
+
+**Revenue Materiality Thresholds:**
+- **Primary Driver (≥50% of revenue):** The product IS the company. Its trajectory determines the stock price. (e.g., iPhone for Apple, Search for Alphabet, AWS for Amazon's profit)
+- **Material Contributor (25–50% of revenue):** The product meaningfully moves the earnings needle. Growth or decline in this segment changes the investment thesis. (e.g., Azure for Microsoft, Advertising for Meta)
+- **Emerging Driver (10–25% of revenue AND growing ≥40% YoY):** Not yet material but trajectory suggests it will become material within 2–3 years. Worth monitoring but not sufficient alone to drive the stock. (e.g., a new drug in a pharma pipeline generating \$2B on a \$40B revenue base but growing 60% YoY)
+- **Immaterial (<10% of revenue OR growing <20% YoY):** Interesting but irrelevant to the equity thesis. Do NOT score these products in the disruption/superlative assessment. (e.g., Apple's HomePod, Google's hardware products)
+
+---
+
+## The Six-Dimension Assessment Framework
+
+Each dimension is scored 1–10. The composite score uses weighted averages reflecting empirical importance to sustained earnings growth.
+
+### Dimension 1: MOAT Formation & Durability (Weight: 25%)
+
+Evaluates the structural competitive advantages protecting the product's market position. A moat without a disruptive product is a declining fortress; a disruptive product without a moat is a fleeting advantage.
+
+**MOAT Trajectory Indicator (required alongside dimension score):**
+After scoring all sub-categories, assign a directional indicator:
+- **⬆ WIDENING** — Competitive advantages are strengthening. Evidence: market share increasing, switching costs growing, network effects compounding, cost advantages expanding. (e.g., NVIDIA CUDA: developer adoption accelerating, ecosystem gap versus AMD ROCm growing despite \$5.8B AMD R&D)
+- **➡ STABLE** — Moat is holding but not expanding. Evidence: market share flat, competitive position maintained but not improving.
+- **⬇ NARROWING** — Competitive advantages are eroding. Evidence: competitors closing performance gaps, market share declining, pricing power weakening, switching costs decreasing. (e.g., Tesla Automotive: BYD surpassing on volume, Chinese competitors matching specs at lower price, margins compressing from 25% to 17%)
+- **⚠ COMMODITIZING** — Product that was once disruptive is becoming a commodity. Multiple competitors now offer comparable products. Former moat advantages are largely neutralized. This is the most important signal — it distinguishes a stock that WAS disruptive from one that IS disruptive.
+
+The Moat Trajectory indicator is a critical calibration tool. A product scoring 7/10 with ⬆ WIDENING trajectory is a fundamentally different investment proposition than a 7/10 with ⬇ NARROWING trajectory. Always report both the score and the trajectory.
+
+**MOAT Sub-Categories (score each, average for dimension score):**
+
+**1a. Network Effects (0–10)**
+Does the product become more valuable as more people use it?
+- 9-10: Winner-take-all network effects (Facebook social graph, Google search data, Visa payment network)
+- 7-8: Strong bilateral network effects (Uber drivers/riders, Airbnb hosts/guests, app store developers/users)
+- 4-6: Moderate data advantages that improve product but don't create lock-in
+- 1-3: Minimal or no network effects
+
+**1b. Infrastructure Moat (0–10)**
+Has the company built physical or digital infrastructure that would cost billions and years to replicate?
+- 9-10: Literally impossible to replicate (Amazon's logistics, FedEx/UPS networks, cell tower networks)
+- 7-8: Possible to replicate but would require \$10B+ and 5+ years (data centers, factory networks)
+- 4-6: Significant but achievable infrastructure (regional distribution, specialized facilities)
+- 1-3: Easily replicable infrastructure
+
+**1c. Technological Know-How / IP (0–10)**
+Does the company possess proprietary technology, patents, or institutional knowledge that competitors cannot easily acquire?
+- 9-10: Decades of accumulated IP creating insurmountable advantage (Boeing aerospace engineering, ASML lithography, TSMC process technology)
+- 7-8: Strong patent portfolio AND trade secrets AND specialized talent pool
+- 4-6: Meaningful IP but competitors are closing the gap
+- 1-3: Technology is commoditizing or open-source alternatives exist
+
+**1d. Irreversible First-Mover Advantage (0–10)**
+Did being first create an advantage that CANNOT be overcome by latecomers, regardless of their resources?
+- 9-10: First-mover position is now structurally locked in (Google Search's data advantage, Tesla's autonomous driving data, electric car charging network)
+- 7-8: Strong first-mover advantage but theoretical path for challenger exists at extreme cost
+- 4-6: First-mover advantage exists but is being eroded
+- 1-3: First-mover advantage is minimal or has been overcome
+
+**1e. Product Coupling / Ecosystem Lock-In (0–10)**
+Does the product benefit from being integrated into a broader ecosystem where switching requires abandoning multiple interconnected products?
+- 9-10: Deep ecosystem integration where switching means replacing entire workflow (Apple ecosystem, Microsoft Office 365 + Azure + Teams, Google Search + Maps + Gmail)
+- 7-8: Strong coupling with 2-3 complementary products creating significant switching friction
+- 4-6: Some integration benefits but alternatives exist within the ecosystem
+- 1-3: Standalone product with no meaningful ecosystem advantages
+
+**1f. Switching Costs (0–10)**
+How painful is it for a customer to switch to a competitor?
+- 9-10: Switching costs exceed 12 months of revenue equivalent or \$1M+ for enterprise (ERP systems like SAP, enterprise databases)
+- 7-8: Significant retraining, data migration, or workflow disruption required (6+ months)
+- 4-6: Moderate switching costs (1-6 months of friction)
+- 1-3: Trivial to switch; customers can migrate in days
+
+**1g. Low-Cost Advantage / Economies of Scale (0–10)**
+Does the company's scale enable structurally lower costs that smaller competitors cannot match?
+- 9-10: Scale advantages create 30%+ cost advantages (Walmart's purchasing power, Amazon's logistics per-unit cost, TSMC's yield advantage at scale)
+- 7-8: 15-30% cost advantages from scale
+- 4-6: Moderate scale benefits that are meaningful but not decisive
+- 1-3: Cost structure is not meaningfully different from competitors
+
+**Search Strategy for Dimension 1:**
+\`\`\`
+"[TICKER] competitive moat analysis"
+"[TICKER] switching costs enterprise customers"
+"[TICKER] network effects market share"
+"[TICKER] vs competitors market position"
+"[COMPANY] infrastructure capital expenditure investment"
+"[TICKER] patent portfolio IP advantage"
+\`\`\`
+
+### Dimension 2: Performance Superiority (Weight: 20%)
+
+Does the product do things faster, better, or more efficiently than ANY alternative? This is the "do things faster" column from the Blue Ocean framework.
+
+**Scoring Criteria:**
+- 9-10: ≥5x performance advantage on the primary metric AND improvement rate is accelerating (e.g., NVIDIA GPUs 5-10x faster for AI training than closest competitor, getting further ahead each generation)
+- 7-8: 2-5x performance advantage on primary metric, maintaining or widening lead
+- 5-6: Measurable performance advantage (20-100%) but competitors are closing the gap
+- 3-4: Roughly comparable performance with minor advantages
+- 1-2: Behind competitors on key performance metrics
+
+**Key Metrics to Evaluate:**
+- Speed/throughput compared to next-best alternative
+- Accuracy/quality of output compared to alternatives
+- Reliability/uptime track record
+- Acceleration profile: Is the performance gap widening or narrowing with each product generation?
+
+**Critical Question:** Is the performance advantage *structural* (architecture, data, physics) or *temporary* (first to market with a feature that can be copied)?
+
+**Search Strategy:**
+\`\`\`
+"[PRODUCT] vs [COMPETITOR PRODUCT] performance benchmark"
+"[PRODUCT] speed accuracy comparison test"
+"[TICKER] technology roadmap next generation"
+"[PRODUCT] independent review head-to-head"
+\`\`\`
+
+### Dimension 3: Functionality & Value Breadth (Weight: 15%)
+
+Does the product offer more useful capabilities for its intended purpose than alternatives? The "offer more functions for the intended purpose" dimension.
+
+**Scoring Criteria:**
+- 9-10: Product serves as a platform with continuously expanding functionality that competitors cannot replicate (e.g., Tesla over-the-air software updates adding new features to existing cars, iPhone as platform for 2M+ apps)
+- 7-8: Clearly superior feature set addressing ≥80% of use cases versus competitors' 50-60%
+- 5-6: Good feature parity with 1-2 distinguishing capabilities
+- 3-4: Comparable functionality to peers
+- 1-2: Missing key features that competitors offer
+
+**Special Attention To:**
+- Software update capability (can the product improve post-purchase?)
+- Platform versus point solution (platforms create expanding moats)
+- Convenience factors (ease of use, accessibility, reduced friction)
+- Integration with adjacent workflows or products
+
+**Search Strategy:**
+\`\`\`
+"[PRODUCT] features comparison comprehensive"
+"[PRODUCT] what can it do that others can't"
+"[PRODUCT] user review advantages unique"
+"[TICKER] product roadmap new features"
+\`\`\`
+
+### Dimension 4: Cost Position (Weight: 15%)
+
+Evaluates the product's cost competitiveness relative to alternatives AND the company's structural cost advantages. This captures both "cheaper for the customer" and "cheaper to produce."
+
+**Scoring Criteria:**
+- 9-10: Product delivers superior value at lower total cost of ownership AND the company has structural cost advantages (scale, vertical integration) that competitors cannot replicate. Cost advantage compounds over time. (e.g., Amazon's delivery: comparable to "now" delivery at lower cost due to logistics network)
+- 7-8: Product is price-competitive with clear value advantages, or premium-priced but delivers enough incremental value to justify the premium easily
+- 5-6: Comparable cost to alternatives with no structural advantage or disadvantage
+- 3-4: Priced at a premium with questionable value differentiation
+- 1-2: Significantly more expensive than alternatives without proportional value
+
+**Key Nuance — Cost to Customer vs. Cost to Company:**
+A product can be expensive to the customer (premium pricing) AND be superlative if the company's cost position is structurally advantaged. Apple's iPhone is premium-priced but Apple's gross margins (45%+) reflect enormous manufacturing efficiency and supply chain mastery. Score BOTH dimensions.
+
+**Search Strategy:**
+\`\`\`
+"[PRODUCT] pricing vs alternatives total cost"
+"[TICKER] gross margin operating margin trend"
+"[TICKER] cost structure competitive advantage"
+"[PRODUCT] value for money analysis"
+\`\`\`
+
+### Dimension 5: Aesthetic & User Experience (Weight: 10%)
+
+Does the product create an emotional connection or preference that transcends rational comparison? Some products win not because they're objectively better but because they're *experienced* as better.
+
+**Scoring Criteria:**
+- 9-10: Product is culturally iconic; brand alone commands 20%+ price premium. Customers identify with the product. (e.g., Tesla — "best looking car" drives luxury-comparable sales at mainstream price, Apple — design language is industry benchmark)
+- 7-8: Strong brand preference; customers consistently choose this product when price/features are comparable
+- 5-6: Adequate design with no strong negative or positive perception
+- 3-4: Functional but aesthetically behind competitors
+- 1-2: Poor user experience actively driving customer attrition
+- N/A: Not applicable (B2B infrastructure products where aesthetics don't influence purchase decisions — e.g., Teledoc, industrial software). When N/A, redistribute 10% weight proportionally to the remaining five dimensions using these adjusted weights:
+
+\`\`\`
+Dim5 = N/A Redistribution:
+  Dim1: 25% → 28%  (Moat — most predictive of sustained advantage)
+  Dim2: 20% → 22%  (Performance — primary differentiator in B2B)
+  Dim3: 15% → 17%  (Functionality — breadth matters in B2B)
+  Dim4: 15% → 17%  (Cost — enterprise buyers are cost-sensitive)
+  Dim6: 15% → 16%  (Materiality — unchanged in importance)
+
+Composite (Dim5=N/A) = (Dim1 × 0.28) + (Dim2 × 0.22) + (Dim3 × 0.17) + (Dim4 × 0.17) + (Dim6 × 0.16)
+\`\`\`
+
+**Search Strategy:**
+\`\`\`
+"[PRODUCT] design review user experience"
+"[PRODUCT] brand perception consumer survey"
+"[PRODUCT] NPS net promoter score"
+"[TICKER] brand value ranking"
+\`\`\`
+
+### Dimension 6: Revenue Materiality & Earnings Translation (Weight: 15%)
+
+This is the make-or-break dimension. A product can score 10/10 on all five dimensions above and still be worthless to the investment thesis if it doesn't materially contribute to revenue and earnings.
+
+**Scoring Criteria:**
+- 9-10: Product drives ≥50% of total company revenue AND has ≥20% revenue growth AND translates directly to earnings growth (margin-accretive or at least margin-neutral). Revenue from this product IS the company.
+- 7-8: Product drives 25-50% of revenue with strong growth trajectory (≥25% YoY), or drives ≥50% of revenue with stable/moderate growth (10-20%)
+- 5-6: Product drives 10-25% of revenue and growing ≥40% YoY (emerging driver on trajectory to become material), OR drives ≥25% of revenue but growth is decelerating
+- 3-4: Product drives 10-25% of revenue but growth is <20% YoY (stalling before becoming material)
+- 1-2: Product drives <10% of revenue regardless of growth rate (immaterial to thesis)
+
+**Revenue Growth Direction Modifier (applied after base scoring):**
+Revenue growth direction is critical context that the base scoring only partially captures. Apply these modifiers to the Dim6 base score:
+
+| Revenue Growth Direction | Modifier | Rationale |
+|---|---|---|
+| Accelerating (growth rate increasing QoQ) | +0.5 | Indicates product-market fit strengthening |
+| Stable positive (≥10% YoY, consistent) | 0 | No adjustment needed |
+| Decelerating (still positive but growth rate declining) | -0.5 | Early warning: growth engine losing momentum |
+| Flat (0-5% YoY) | -1.0 | Product has matured; earnings growth requires margin expansion |
+| **Declining (negative YoY revenue growth)** | **-1.5** | **RED FLAG: Product is losing market share or pricing power. A primary driver segment with declining revenue fundamentally undermines the disruption thesis regardless of how strong other dimensions score.** |
+
+Example: Tesla Automotive FY2025 — revenue declined 10% YoY. Base score 8/10 (drives 73% of revenue), but -1.5 modifier for declining revenue = adjusted score 6.5/10. This correctly reflects that a shrinking revenue engine cannot sustain earnings growth.
+
+**Competitive Convergence Warning:**
+When a product that formerly scored 8+ on Dimensions 1-5 now scores 6 or below, AND revenue growth is decelerating or declining, issue a **COMPETITIVE CONVERGENCE WARNING**. This means:
+- The product was once truly disruptive but the market has caught up
+- Multiple competitors now offer comparable products at competitive prices
+- The moat is narrowing or has narrowed to the point where the product competes primarily on brand, price, or distribution rather than genuine superiority
+- The stock's historical narrative may not match current product reality
+
+This warning does NOT mean the stock is a sell — it means the original disruption thesis has been commoditized and the investment case must be re-evaluated on different merits (turnaround, new products, valuation).
+
+**Critical Sub-Assessments:**
+- **Gross margin of the product segment** versus company average — is the disruptive product margin-accretive?
+- **Revenue concentration risk** — does the product depend on a single customer or market?
+- **Revenue durability** — is this recurring/subscription revenue or one-time sales?
+- **Earnings translation** — does revenue growth from this product flow through to EPS, or is it being reinvested at a rate that delays profitability?
+
+**Search Strategy:**
+\`\`\`
+"[TICKER] revenue breakdown by segment product"
+"[TICKER] 10-K revenue composition"
+"[TICKER] [PRODUCT] revenue growth quarterly"
+"[TICKER] segment margins operating profit by division"
+"[TICKER] earnings growth drivers analysis"
+\`\`\`
+
+---
+
+## Composite Scoring & Classification
+
+### Score Calculation
+
+\`\`\`
+Composite Score = (Dim1 × 0.25) + (Dim2 × 0.20) + (Dim3 × 0.15) + (Dim4 × 0.15) + (Dim5 × 0.10) + (Dim6 × 0.15)
+\`\`\`
+
+When Dimension 5 is N/A:
+\`\`\`
+Composite Score = (Dim1 × 0.28) + (Dim2 × 0.22) + (Dim3 × 0.17) + (Dim4 × 0.17) + (Dim6 × 0.16)
+\`\`\`
+
+### Classification Tiers
+
+**Tier 1 — Elite Disruptor/Superlative (Composite ≥8.0):**
+The product is both disruptive AND superlative AND material to revenue. These stocks deserve immediate deep-dive analysis for portfolio inclusion. Historical examples: NVIDIA (AI GPUs), Amazon (logistics + AWS), Apple (iPhone ecosystem).
+
+**Tier 2 — Strong Franchise (Composite 6.5–7.9):**
+The product has clear superiority and meaningful moat, but either the disruption is incomplete, the moat has identifiable vulnerabilities, or revenue materiality is below ideal thresholds. Monitor closely and be ready to upgrade if trajectory improves. Historical examples: Tesla (autonomous + manufacturing scale, but regulatory uncertainty), Broadcom (custom AI silicon, but customer concentration).
+
+**Tier 3 — Competitive Advantage (Composite 5.0–6.4):**
+The product has identifiable strengths but does not meet the threshold for true disruption or superlative status. The moat exists but is narrowing, or the product is not yet material to revenue. These are "good companies" but may not offer the sustained earnings acceleration that drives 2-3x market outperformance.
+
+**Tier 4 — Commodity/Undifferentiated (Composite <5.0):**
+The product does not exhibit disruptive or superlative characteristics. The company competes primarily on price, brand legacy, or distribution rather than product superiority. Not appropriate for the 70% Engine unless a turnaround catalyst is identified.
+
+### Forward Disruption Optionality (FDO) Modifier
+
+**Purpose:** Some companies score in Tier 2 or Tier 3 on their CURRENT primary product but possess a pre-material emerging product with genuine disruption potential. The FDO modifier captures this optionality without abandoning revenue materiality discipline. It prevents two errors: (1) ignoring a genuine disruption inflection point because revenue hasn't materialized yet, and (2) inflating scores based on narrative rather than evidence.
+
+**FDO Eligibility Criteria (ALL four must be met):**
+1. The emerging product scores ≥7.5/10 on Disruption Criteria (meets ≥3 of 4 True Disruption tests)
+2. The emerging product has a **credible path to Revenue Materiality within 24 months** — evidenced by commercial pilot, regulatory approvals in progress, confirmed production timeline, or customer contracts
+3. The company is **actively investing** in the emerging product (R&D spend traceable, executive attention, capital allocation shifts)
+4. The emerging product has **visible de-risking milestones** in the next 6-12 months that the market can observe
+
+**FDO Scoring:**
+
+| FDO Level | Composite Modifier | Criteria |
+|---|---|---|
+| **FDO-3 (High Optionality)** | +1.0 to +1.5 | All 4 eligibility criteria met. Emerging product already generating pilot revenue. Regulatory/commercial path clear. Market cap does NOT yet fully reflect the disruption potential. Example: Tesla in H1 2025 before Austin robotaxi launch. |
+| **FDO-2 (Moderate Optionality)** | +0.5 to +1.0 | 3 of 4 eligibility criteria met. Product is in advanced development/testing but pre-revenue. Clear timeline for commercial launch. Some execution risk remains. |
+| **FDO-1 (Speculative Optionality)** | +0.0 to +0.5 | 2 of 4 criteria met. Product shows disruption promise but commercial viability is unproven. Heavy execution risk. No composite modifier unless strong evidence of imminent breakthrough. |
+| **FDO-0 (No Optionality)** | 0 | Emerging product is speculative, pre-prototype, or lacks clear path to revenue materiality. No modifier applied. Do not award optionality credit for press releases and promises. |
+
+**FDO Application Rules:**
+- FDO is ALWAYS reported separately from the base composite score. Format: "Composite: 6.5 (base) + 0.8 (FDO-2) = 7.3 (adjusted)"
+- FDO NEVER moves a stock more than one tier. A Tier 3 base cannot become Tier 1 via FDO alone.
+- FDO decays: If the de-risking milestones in the 6-12 month window are NOT met, FDO modifier drops to the next lower level automatically.
+- FDO must be re-evaluated each quarter as milestones are hit or missed.
+- Include a **FDO Invalidation Trigger** — the specific event that would eliminate the optionality entirely (e.g., "FSD regulatory rejection in multiple states" or "Cybercab production delayed beyond 2027").
+
+**Valuation-Awareness Flag:**
+When FDO is applied, ALWAYS check whether the market has already priced in the disruption optionality. If the stock trades at a significant premium to its current-product fundamentals (e.g., P/E >60x for a company whose base composite is Tier 2-3), note this explicitly:
+
+- **PRICED IN**: Market cap implies FDO success. The optionality is already in the stock price. Entry at current levels requires conviction that the disruption will EXCEED current expectations, not merely materialize.
+- **PARTIALLY PRICED**: Some premium for disruption optionality but meaningful upside remains if execution succeeds.
+- **NOT PRICED**: Market is skeptical of the emerging product. If disruption materializes, significant re-rating potential exists. This is the ideal asymmetric setup.
+
+Example: Tesla at \$400+ (100x+ earnings, \$1.3T+ market cap) with base composite 6.5 — the market is pricing in FSD/Robotaxi success. FDO modifier improves the research score to 7.3 adjusted, but the Valuation-Awareness Flag reads "PRICED IN." This correctly signals that the product optionality is real but the asymmetric opportunity may have already been captured by the stock price.
+
+---
+
+## SCAN Mode — Watchlist Screening Protocol
+
+When the user provides a watchlist or requests a sector screen:
+
+### Step 1: Identify Each Company's Core Product(s)
+
+For each ticker on the watchlist, identify the **1-2 products/segments** that constitute the largest revenue contributions. Do NOT analyze minor product lines.
+
+**Search Strategy:**
+\`\`\`
+"[TICKER] revenue breakdown by segment 2024 2025"
+"[TICKER] 10-K annual report revenue composition"
+"[TICKER] earnings call product revenue"
+\`\`\`
+
+### Step 2: Quick Disruption/Superlative Screen
+
+For each identified core product, perform a rapid assessment across the six dimensions using publicly available data. In SCAN mode, spend 1-2 searches per dimension per stock (not the full deep-dive of ASSESS mode).
+
+### Step 3: Score and Rank
+
+Apply the composite scoring formula and rank the watchlist from highest to lowest.
+
+### Step 4: Deliver SCAN Output
+
+Use this template:
+
+\`\`\`
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+DISRUPTION & SUPERLATIVE PRODUCT SCAN
+Date: [Date] | Watchlist: [N] tickers | Methodology: 6-Dimension Framework
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+TIER 1 — ELITE DISRUPTORS (Composite ≥8.0)
+───────────────────────────────────────────
+[TICKER] | Core Product: [Name] | Revenue Share: [X]% | Composite: [X.X]/10
+  Moat: [X]/10 [⬆/➡/⬇/⚠] | Performance: [X]/10 | Functionality: [X]/10
+  Cost: [X]/10 | Aesthetics: [X]/10 | Materiality: [X]/10 (Growth: [+X%/-X%])
+  FDO: [N/A or FDO-1/2/3 with +X.X modifier → Adjusted: X.X]
+  Key Insight: [One-sentence thesis on why this product sustains earnings]
+  Earnings Sustainability: [HIGH/MEDIUM/LOW] — [Brief rationale]
+
+TIER 2 — STRONG FRANCHISE (Composite 6.5–7.9)
+──────────────────────────────────────────────
+[Same format + Competitive Convergence Warning if applicable]
+
+TIER 3 — COMPETITIVE ADVANTAGE (Composite 5.0–6.4)
+───────────────────────────────────────────────────
+[Same format]
+
+TIER 4 — COMMODITY/UNDIFFERENTIATED (Composite <5.0)
+────────────────────────────────────────────────────
+[Same format]
+
+PRIORITY FOR DEEP ASSESSMENT:
+1. [TICKER] — [Reason for priority: e.g., "Highest composite with accelerating revenue growth"]
+2. [TICKER] — [Reason]
+3. [TICKER] — [Reason]
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+AI SCORING FRAMEWORK ALIGNMENT
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Trends with Huge TAM: [Summarize which tickers ride massive TAMs]
+Bias Formation: [Note any tickers where narrative may be diverging from product reality]
+Superlative Products: [Highlight top-scoring products]
+Disruptive Products: [Highlight truly disruptive products vs. incrementally better ones]
+
+DISCLAIMER: This screening is for research purposes only. It is not
+personalized investment advice. All investments carry risk including
+potential loss of principal. Past product performance does not
+guarantee future stock performance.
+\`\`\`
+
+---
+
+## ASSESS Mode — Deep Single-Ticker Analysis Protocol
+
+When the user asks for a deep assessment of a specific ticker:
+
+### Research Sequence
+
+Execute ALL of these searches before scoring. Breadth first, scoring second.
+
+**DUAL-PRODUCT DETECTION (execute first, before Block 1):**
+After initial revenue identification, determine if the company has BOTH:
+- A current primary product that drives ≥50% of revenue AND
+- An emerging product that (a) is pre-material (<25% revenue) but (b) has disruption potential that the market narrative treats as a major value driver
+
+If dual-product conditions are detected:
+1. Score the CURRENT primary product through all six dimensions normally — this produces the **base composite**
+2. Score the EMERGING product on the four True Disruption Criteria separately — this produces the **disruption potential score**
+3. Apply the FDO modifier based on the emerging product's eligibility
+4. Report BOTH scores transparently: "Base Composite: X.X (current product) | FDO-Adjusted: Y.Y (with optionality)"
+
+This prevents the common analytical error of averaging a strong future product with a weakening current product, which masks deterioration in the core business.
+
+**Block 1 — Product & Revenue Identification:**
+\`\`\`
+"[TICKER] revenue breakdown segment product 2024 2025"
+"[TICKER] 10-K revenue composition by product line"
+"[TICKER] annual report key products services"
+"[TICKER] earnings call product revenue contribution"
+\`\`\`
+
+**Block 2 — Competitive Position & Moat:**
+\`\`\`
+"[TICKER] competitive advantage moat analysis"
+"[TICKER] market share by product segment"
+"[TICKER] vs competitors head to head comparison"
+"[TICKER] switching costs customer retention churn"
+"[TICKER] network effects ecosystem lock-in"
+"[TICKER] patent portfolio intellectual property"
+"[TICKER] barriers to entry competitive threats"
+\`\`\`
+
+**Block 3 — Product Performance & Superiority:**
+\`\`\`
+"[TICKER] [PRODUCT] performance benchmark comparison"
+"[TICKER] [PRODUCT] review best in class"
+"[TICKER] [PRODUCT] technology roadmap next generation"
+"[TICKER] R&D spending innovation pipeline"
+\`\`\`
+
+**Block 4 — Financial & Earnings Translation:**
+\`\`\`
+"[TICKER] segment margins gross profit by division"
+"[TICKER] earnings growth drivers analysis"
+"[TICKER] revenue growth acceleration deceleration"
+"[TICKER] free cash flow margin trend"
+"[TICKER] forward earnings estimates consensus"
+\`\`\`
+
+**Block 5 — Sustainability & Risks:**
+\`\`\`
+"[TICKER] competitive threats emerging risks"
+"[TICKER] regulatory risk antitrust"
+"[TICKER] customer concentration revenue"
+"[TICKER] technology disruption risk to [PRODUCT]"
+\`\`\`
+
+### Deliver ASSESS Output
+
+Use this template:
+
+\`\`\`
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+DISRUPTION & SUPERLATIVE PRODUCT ASSESSMENT
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+TICKER: [TICKER]
+Company: [Full Name]
+Sector: [Sector] | Market Cap: \$[X]B
+Assessment Date: [Date]
+Analyst: Ekantik Investment Research — AI-Assisted
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+PRODUCT IDENTIFICATION & REVENUE MATERIALITY
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Primary Product/Segment: [Name]
+  Revenue Contribution: \$[X]B ([X]% of total)
+  Revenue Growth (YoY): [X]%
+  Gross Margin: [X]%
+  Materiality Classification: [Primary Driver / Material Contributor / Emerging / Immaterial]
+
+Secondary Product/Segment (if applicable): [Name]
+  Revenue Contribution: \$[X]B ([X]% of total)
+  Revenue Growth (YoY): [X]%
+  Materiality Classification: [Classification]
+
+Products EXCLUDED from analysis (immaterial):
+  [List any notable but immaterial products and why they were excluded]
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+SIX-DIMENSION SCORING
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+DIMENSION 1: MOAT FORMATION & DURABILITY — [X.X]/10 (Weight: 25%)
+  Moat Trajectory: [⬆ WIDENING / ➡ STABLE / ⬇ NARROWING / ⚠ COMMODITIZING]
+  Network Effects: [X]/10 — [Evidence]
+  Infrastructure Moat: [X]/10 — [Evidence]
+  Technological Know-How: [X]/10 — [Evidence]
+  First-Mover Advantage: [X]/10 — [Evidence]
+  Product Coupling / Ecosystem: [X]/10 — [Evidence]
+  Switching Costs: [X]/10 — [Evidence]
+  Scale / Cost Advantage: [X]/10 — [Evidence]
+  Dimension Score: [Average of sub-scores]
+
+DIMENSION 2: PERFORMANCE SUPERIORITY — [X]/10 (Weight: 20%)
+  Primary performance metric: [What matters most]
+  Performance vs. nearest competitor: [Xx advantage]
+  Trajectory: [Widening / Stable / Narrowing]
+  Evidence: [Specific benchmarks or data]
+
+DIMENSION 3: FUNCTIONALITY & VALUE BREADTH — [X]/10 (Weight: 15%)
+  Platform vs. point solution: [Assessment]
+  Feature completeness: [Assessment]
+  Post-purchase improvement capability: [Assessment]
+  Evidence: [Specific capabilities unique to this product]
+
+DIMENSION 4: COST POSITION — [X]/10 (Weight: 15%)
+  Customer cost position: [Premium / Competitive / Advantaged]
+  Company cost structure: [Gross margin: X%, vs. peer average: X%]
+  Scale advantage magnitude: [Assessment]
+  Evidence: [Specific cost data]
+
+DIMENSION 5: AESTHETIC & USER EXPERIENCE — [X]/10 or N/A (Weight: 10%)
+  Brand premium: [Assessment]
+  User preference data: [Assessment]
+  Evidence: [NPS, reviews, survey data]
+
+DIMENSION 6: REVENUE MATERIALITY & EARNINGS TRANSLATION — [X]/10 (Weight: 15%)
+  Revenue share: [X]%
+  Revenue growth: [X]% YoY
+  Revenue Growth Direction: [Accelerating/Stable/Decelerating/Flat/Declining]
+  Revenue Growth Modifier: [+0.5/0/-0.5/-1.0/-1.5]
+  Adjusted Dim6 Score: [Base + Modifier]
+  Margin accretive: [Yes/No — detail]
+  Revenue durability: [Recurring / One-time / Mixed]
+  Earnings translation: [Direct / Reinvestment phase / Unclear]
+  Competitive Convergence Warning: [YES/NO — if YES, explain]
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+COMPOSITE SCORE & CLASSIFICATION
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+COMPOSITE SCORE: [X.X] / 10 (base)
+CLASSIFICATION: [Tier 1 / Tier 2 / Tier 3 / Tier 4] — [Tier Name]
+
+FORWARD DISRUPTION OPTIONALITY (if applicable):
+  Emerging Product: [Name]
+  Disruption Score: [X.X]/10 (assessed separately)
+  FDO Level: [FDO-3 / FDO-2 / FDO-1 / FDO-0]
+  FDO Modifier: [+X.X]
+  Adjusted Composite: [Base + FDO] = [X.X]/10
+  Adjusted Classification: [Tier X — Name (adjusted from Tier Y)]
+  FDO Eligibility: [Which of the 4 criteria are met — list each]
+  De-Risking Milestones (next 6-12 months): [List specific observable events]
+  FDO Invalidation Trigger: [What eliminates the optionality entirely]
+  Valuation-Awareness Flag: [PRICED IN / PARTIALLY PRICED / NOT PRICED]
+    Rationale: [Compare current valuation to base-product fundamentals]
+
+Product Classification:
+  □ Disruptive: [Yes/No] — [Rationale: meets all 4 true disruption criteria?]
+  □ Superlative: [Yes/No] — [Rationale: meets ≥3 superlative criteria?]
+  □ Revenue Material: [Yes/No] — [Rationale: ≥25% of revenue?]
+
+EARNINGS SUSTAINABILITY ASSESSMENT:
+  Can this product sustain ≥15% annual earnings growth for 3+ years?
+  Assessment: [YES (High Confidence) / YES (Moderate Confidence) / UNCERTAIN / NO]
+  Rationale: [Detailed explanation linking product superiority to earnings trajectory]
+  Key Assumption: [What must remain true for this assessment to hold]
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+DURABILITY RISK ASSESSMENT
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+MOAT EROSION RISKS (what could undermine the advantage):
+  Risk 1: [Specific competitive, technological, or regulatory threat]
+    Probability: [Low/Medium/High] | Timeline: [When could this materialize]
+  Risk 2: [Specific risk]
+    Probability: [X] | Timeline: [X]
+  Risk 3: [Specific risk]
+    Probability: [X] | Timeline: [X]
+
+DISRUPTION-TO-THE-DISRUPTOR RISK:
+  Is there an emerging technology or business model that could do to this
+  company what this company did to incumbents?
+  Assessment: [Yes/No/Emerging]
+  Detail: [Specific threat analysis]
+
+REVENUE MATERIALITY TRAJECTORY:
+  Is the product's revenue share growing, stable, or declining?
+  Current: [X]% → Projected 3-Year: [X]%
+  Direction: [Increasing materiality / Stable / Declining materiality]
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+5-STEP FRAMEWORK ALIGNMENT
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Step 1 (AOMG): [Is this stock aligned with a current Area of Maximum Growth?]
+Step 2 (Disruption/Superlative): [THIS ASSESSMENT — summary verdict]
+Step 3 (Mag 7): [If applicable, how does mega-cap status affect the analysis?]
+Step 4 (Episodic Pivot): [Are there identifiable pivot catalysts ahead?]
+Step 5 (Bias Formation): [Are sentiment biases creating opportunity or risk?]
+
+AI Scoring Framework:
+  Trends with Huge TAM: [X]/10
+  Bias Formation: [X]/10
+  Superlative Products Likelihood: [X]/10
+  Disruptive Products Likelihood: [X]/10
+  AI Composite: [X.X]/10
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+PORTFOLIO IMPLICATIONS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Recommended Action: [INITIATE / ADD / HOLD / WATCH / AVOID]
+Conviction Level: [HIGH / MEDIUM / LOW]
+Suggested Engine: [70% Stocks/LEAPS / 30% Options / Both]
+Position Size Guidance: [X]% of portfolio
+Time Horizon: [X months/years]
+
+Monitoring Triggers:
+  Upgrade trigger: [What would increase conviction]
+  Downgrade trigger: [What would decrease conviction]
+  Exit trigger: [What invalidates the thesis entirely]
+
+Product Milestones to Watch:
+  [Specific upcoming product events, launches, or data points
+   that will validate or invalidate the disruption thesis]
+
+DISCLAIMER: This assessment is for research purposes only. It is not
+personalized investment advice. All investments carry risk including
+potential loss of principal. Product superiority does not guarantee
+stock price appreciation.
+
+Sources: [List key data sources referenced]
+\`\`\`
+
+---
+
+## Calibration Reference — Scoring Anchor Points
+
+These assessments were completed during skill development to establish scoring benchmarks. Use them to calibrate future assessments for consistency.
+
+### NVDA (NVIDIA) — Tier 1 Anchor (Composite: 9.1)
+- Product: Data Center AI Accelerators (CUDA + GPUs)
+- Revenue: \$115.2B (88.3% of total), +142% YoY
+- Moat: 9.3/10 ⬆ WIDENING — CUDA ecosystem creates switching costs exceeding any competitor's performance advantage. 19-year head start with 3.5M+ developers locked in. AMD's 9-year ROCm investment hasn't closed the gap.
+- Performance: 9/10 — 5x training performance improvement per generation, 80-95% market share
+- Materiality: 10/10 — Revenue IS the company, growth accelerating, direct earnings translation
+- FDO: N/A (primary product is already Tier 1; no dual-product dynamic)
+- Key calibration insight: This is what a maximum-score assessment looks like. The product IS the company, the moat is widening, and earnings growth is fundamentally driven (not narrative-driven).
+
+### TSLA (Tesla) — Tier 2 Anchor with FDO (Base: 6.5, FDO-Adjusted: 7.3)
+- Current Product: Automotive (EVs) — 73.3% of revenue, -10% YoY
+- Moat: 6.1/10 ⬇ NARROWING — BYD surpassed on volume, Chinese competitors matching specs at lower price, margins compressed from 25% to 17%
+- Performance: 6/10 — Range/charging gap compressed vs. competition. OTA updates remain superlative.
+- Materiality: 7/10 (base 8 - 1.5 for declining revenue) — Revenue declining is a fundamental red flag
+- Competitive Convergence Warning: YES — Tesla automotive was disruptive 2015-2020 but the EV market has commoditized
+- FDO Product: FSD/Robotaxi — Disruption score 8.0/10, FDO-2 (Moderate Optionality, +0.8 modifier)
+- Valuation-Awareness Flag: PRICED IN (100x+ earnings assumes FSD success)
+- Key calibration insight: Demonstrates the dual-product protocol and FDO correctly. The base score (6.5) reflects current automotive reality. The FDO-adjusted score (7.3) captures genuine disruption optionality. The Valuation-Awareness Flag correctly notes that the stock price already implies FSD success.
+
+---
+
+## Execution Guidelines
+
+**SCAN Mode Defaults:**
+- Screen all tickers provided by the user
+- Execute at least 2-3 targeted searches per ticker to identify core products and revenue composition
+- Score using available data — flag where data gaps reduce confidence
+- Rank by composite score and highlight the top candidates for ASSESS mode
+
+**ASSESS Mode Defaults:**
+- Execute the FULL research sequence (all 5 search blocks) before scoring
+- Score each sub-category independently with evidence before computing averages
+- Complete all six dimensions before computing composite
+- Never skip the Revenue Materiality dimension — this is the filter that separates interesting products from investable opportunities
+
+**Honest Scoring:**
+Do not inflate scores. A company scoring 4/10 on disruption is a valuable finding — it prevents capital misallocation into companies that are "innovative" but not truly disruptive. The skill's value comes from distinguishing genuine disruption from marketing narratives.
+
+**The Revenue Materiality Gate:**
+If a product scores below 5/10 on Dimension 6 (Revenue Materiality), the overall assessment should carry a warning regardless of how well it scores on other dimensions. A brilliant product that doesn't drive revenue doesn't drive stock prices.
+
+## Quality Standards
+
+**Source Hierarchy:**
+1. SEC filings (10-K, 10-Q for segment revenue data)
+2. Company earnings transcripts and investor presentations
+3. Independent product reviews and benchmarks
+4. Industry research reports for TAM and competitive positioning
+5. Financial data providers for consensus estimates
+6. Patent filings and R&D disclosures
+
+**Red Flags That Lower Scores:**
+- Company claims disruption but market share is declining
+- Product revenue is growing but only through price cuts (no pricing power)
+- Customer concentration >25% in a single client
+- Competitive moat relies entirely on patents nearing expiration
+- Company is losing talent to competitors (Glassdoor ratings declining, executive departures)
+- Revenue growth is decelerating quarter-over-quarter despite claims of disruption
+
+**Never Do:**
+- Score a product as disruptive without meeting ALL four true disruption criteria
+- Ignore the revenue materiality dimension because the product is "exciting"
+- Present product analysis as investment advice
+- Fabricate benchmark data or competitive positioning metrics
+- Assign scores without specific evidence
+- Confuse brand perception with product reality
+
+## Success Criteria
+
+This skill succeeds when:
+✓ Every product assessment includes specific revenue materiality data
+✓ Disruption vs. incremental improvement is clearly distinguished with evidence
+✓ Moat sub-categories are individually scored with data AND moat trajectory (⬆/➡/⬇/⚠) is reported
+✓ Revenue Growth Direction modifier is applied to Dimension 6
+✓ Earnings sustainability is linked directly to product trajectory
+✓ Both upside potential AND competitive risks are articulated
+✓ Dual-product companies have BOTH products assessed independently
+✓ FDO modifier is applied when eligible, with de-risking milestones and invalidation triggers
+✓ Valuation-Awareness Flag is reported when FDO is applied
+✓ Competitive Convergence Warning is issued when a formerly disruptive product has been commoditized
+✓ The 5-step framework alignment is completed
+✓ AI Scoring Framework is populated
+✓ Products that are immaterial to revenue are explicitly excluded
+
+This skill fails when:
+✗ Products are called "disruptive" without meeting the four criteria
+✗ Revenue materiality is ignored or handwaved
+✗ Moat analysis is generic rather than sub-category specific
+✗ Moat trajectory is not reported (static score without directional context)
+✗ Revenue growth direction is ignored (a product with -10% YoY growth scored same as +50% growth)
+✗ FDO optionality is granted without meeting eligibility criteria
+✗ FDO-adjusted score is presented without the base score (hides current-product weakness)
+✗ Valuation context is missing when market is pricing in disruption ahead of revenue
+✗ Scoring lacks quantitative justification
+✗ Only bullish evidence is presented
+✗ Immaterial product lines are analyzed as if they drive the investment thesis
+✗ Competitive threats are dismissed rather than evaluated
+✗ A dual-product company is scored by blending current and emerging products into a single composite (masks deterioration)
+
+DELIVERABLE: Produce the full output format as specified in the skill documentation above. For SCAN mode, screen all tickers for disruption/superlative signals using the six-dimension framework and rank by composite score. For ASSESS mode, execute the full research sequence (all 5 search blocks), score each dimension with evidence, compute the composite, apply FDO modifiers where eligible, and deliver the complete assessment template including 5-Step Framework alignment, Portfolio Implications, and Durability Risk Assessment. Always include Revenue Materiality analysis and Moat Trajectory indicators.`
 }
 
 // ── Layer 3: Data Context Builder ──────────────────────────
@@ -2828,5 +3628,121 @@ After the JSON block, provide a detailed markdown analysis covering:
 3. Market pricing analysis
 4. Trade thesis (if pivot detected)
 5. Recommended next steps (which other agents to run)
-6. Risk factors and invalidation criteria`
+6. Risk factors and invalidation criteria`,
+
+  disruption: `
+REQUIRED OUTPUT FORMAT — Return valid JSON:
+{
+  "key_takeaway": "One sentence: Is the product truly disruptive/superlative AND material to revenue?",
+  "impact_score": "H" | "M" | "L",
+  "conviction_level": "HIGH" | "MEDIUM" | "LOW",
+  "ai_composite_score": <number 0-10>,
+  "mode": "scan" | "assess",
+  "product_identification": {
+    "primary_product": "Product/segment name",
+    "primary_revenue_share_pct": <number>,
+    "primary_revenue_growth_yoy_pct": <number>,
+    "primary_materiality": "primary_driver" | "material_contributor" | "emerging_driver" | "immaterial",
+    "secondary_product": "Product name or null",
+    "secondary_revenue_share_pct": <number or null>,
+    "secondary_materiality": "primary_driver" | "material_contributor" | "emerging_driver" | "immaterial" | null,
+    "dual_product_detected": true | false
+  },
+  "six_dimension_scores": {
+    "dim1_moat": <0-10>,
+    "dim1_moat_trajectory": "widening" | "stable" | "narrowing" | "commoditizing",
+    "dim1_sub_scores": {
+      "network_effects": <0-10>,
+      "infrastructure_moat": <0-10>,
+      "tech_ip": <0-10>,
+      "first_mover": <0-10>,
+      "ecosystem_lock_in": <0-10>,
+      "switching_costs": <0-10>,
+      "scale_cost_advantage": <0-10>
+    },
+    "dim2_performance": <0-10>,
+    "dim2_performance_gap": "Nx advantage description",
+    "dim2_trajectory": "widening" | "stable" | "narrowing",
+    "dim3_functionality": <0-10>,
+    "dim3_platform_vs_point": "platform" | "point_solution" | "hybrid",
+    "dim4_cost_position": <0-10>,
+    "dim4_gross_margin_pct": <number>,
+    "dim5_aesthetics_ux": <0-10 or null>,
+    "dim5_na": true | false,
+    "dim6_revenue_materiality": <0-10>,
+    "dim6_revenue_growth_direction": "accelerating" | "stable_positive" | "decelerating" | "flat" | "declining",
+    "dim6_growth_modifier": <number>,
+    "dim6_adjusted_score": <number>,
+    "dim6_competitive_convergence_warning": true | false
+  },
+  "composite_score": <number 0-10>,
+  "classification_tier": "tier_1_elite" | "tier_2_strong" | "tier_3_competitive" | "tier_4_commodity",
+  "classification_label": "Elite Disruptor" | "Strong Franchise" | "Competitive Advantage" | "Commodity/Undifferentiated",
+  "fdo": {
+    "applicable": true | false,
+    "emerging_product": "Product name or null",
+    "disruption_potential_score": <0-10 or null>,
+    "fdo_level": "FDO-3" | "FDO-2" | "FDO-1" | "FDO-0" | null,
+    "fdo_modifier": <number>,
+    "adjusted_composite": <number or null>,
+    "adjusted_tier": "tier_1_elite" | "tier_2_strong" | "tier_3_competitive" | "tier_4_commodity" | null,
+    "valuation_awareness": "priced_in" | "partially_priced" | "not_priced" | null,
+    "invalidation_trigger": "What would eliminate the optionality" | null,
+    "de_risking_milestones": ["milestone 1", "milestone 2"] | null
+  },
+  "product_classification": {
+    "is_disruptive": true | false,
+    "is_superlative": true | false,
+    "is_revenue_material": true | false
+  },
+  "earnings_sustainability": {
+    "can_sustain_15pct_growth_3yr": "yes_high" | "yes_moderate" | "uncertain" | "no",
+    "rationale": "Detailed explanation",
+    "key_assumption": "What must remain true"
+  },
+  "durability_risks": [
+    {
+      "risk": "Description",
+      "probability": "low" | "medium" | "high",
+      "timeline": "When could this materialize"
+    }
+  ],
+  "disruption_to_disruptor_risk": {
+    "exists": true | false,
+    "detail": "What could disrupt the disruptor"
+  },
+  "framework_alignment": {
+    "step1_aomg": "Alignment with Areas of Maximum Growth",
+    "step2_disruption": "THIS ASSESSMENT — summary verdict",
+    "step3_mag7": "Mega-cap status impact if applicable",
+    "step4_episodic_pivot": "Pivot catalysts ahead",
+    "step5_bias": "Sentiment bias creating opportunity or risk"
+  },
+  "portfolio_implications": {
+    "recommended_action": "INITIATE" | "ADD" | "HOLD" | "WATCH" | "AVOID",
+    "conviction": "HIGH" | "MEDIUM" | "LOW",
+    "suggested_engine": "70% Stocks/LEAPS" | "30% Options" | "Both",
+    "time_horizon": "X months/years",
+    "monitoring_triggers": {
+      "upgrade": "What would increase conviction",
+      "downgrade": "What would decrease conviction",
+      "exit": "What invalidates the thesis"
+    }
+  },
+  "scores": {
+    "tam": <0-10>, "bias": <0-10>, "superlative": <0-10>, "disruption": <0-10>
+  },
+  "episodic_pivot": {
+    "identified": true | false,
+    "event": "Key disruption-related event or catalyst",
+    "pivot_type": "earnings_surprise|regulatory_shift|management_change|product_inflection|macro_regime|geopolitical|narrative_collapse|competitive_moat|capital_event",
+    "reality_change": "What changed",
+    "magnitude": "high|medium|low",
+    "is_perceived": true | false,
+    "catalyst_date": "YYYY-MM-DD",
+    "time_horizon": "immediate|1-2 weeks|1-3 months|3-6 months"
+  }
+}
+
+After the JSON block, provide a detailed markdown analysis following the SCAN or ASSESS output template from the skill documentation. For SCAN mode, include tiered rankings with per-ticker composite scores and priority recommendations. For ASSESS mode, include full six-dimension scoring with evidence, composite calculation, FDO analysis, earnings sustainability assessment, durability risk analysis, 5-step framework alignment, and portfolio implications.`
 }
