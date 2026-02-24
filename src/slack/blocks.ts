@@ -663,7 +663,7 @@ function buildEpisodicPivotBlocks(s: any): any[] {
       material_events: '/material', bias_mode: '/bias', mag7_monitor: '/mag7',
       ai_scorer: '/score', hot_micro: '/trend', hot_macro: '/macro',
       doubler: '/doubler', social_sentiment: '/sentiment', aomg_scanner: '/aomg',
-      episodic_pivot: '/pivot', disruption: '/disruption',
+      episodic_pivot: '/pivot', disruption: '/disruption', dislocation: '/dislocation',
     }
     const nextSteps = s.recommended_next_agents.map((a: string) => `\`${agentCmdMap[a] || a}\``).join(' → ')
     blocks.push({

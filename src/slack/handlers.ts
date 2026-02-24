@@ -99,6 +99,7 @@ slackRoutes.post('/commands', async (c) => {
     '/sentiment': { agent: 'social_sentiment', needsTicker: false, description: 'Social Sentiment Scanner' },
     '/pivot': { agent: 'episodic_pivot', needsTicker: true, description: 'Episodic Pivot Scanner' },
     '/disruption': { agent: 'disruption', needsTicker: true, description: 'Disruption & Superlative Detection' },
+    '/dislocation': { agent: 'dislocation', needsTicker: true, description: 'Stock Dislocation Detection' },
   }
 
   // ─────────────────────────────────────────────────────────
@@ -248,7 +249,7 @@ slackRoutes.get('/health', (c) => {
   return c.json({
     status: 'ok',
     service: 'ekantik-slack',
-    commands: ['/material', '/bias', '/mag7', '/score', '/heat', '/watch', '/aomg', '/trend', '/macro', '/doubler', '/sentiment', '/pivot', '/disruption', '/save'],
+    commands: ['/material', '/bias', '/mag7', '/score', '/heat', '/watch', '/aomg', '/trend', '/macro', '/doubler', '/sentiment', '/pivot', '/disruption', '/dislocation', '/save'],
     version: '3.0.0',
   })
 })
@@ -362,7 +363,7 @@ export async function processPortalResearch(
 const VALID_AGENTS = [
   'material_events', 'bias_mode', 'mag7_monitor', 'aomg_scanner',
   'hot_micro', 'hot_macro', 'doubler', 'ai_scorer', 'social_sentiment',
-  'portfolio_heat', 'superlative_products', 'episodic_pivot', 'disruption',
+  'portfolio_heat', 'superlative_products', 'episodic_pivot', 'disruption', 'dislocation',
 ]
 
 const AGENT_DETECTION_KEYWORDS: Record<string, string[]> = {
@@ -377,6 +378,7 @@ const AGENT_DETECTION_KEYWORDS: Record<string, string[]> = {
   social_sentiment: ['social sentiment', 'reddit', 'wsb', 'wallstreetbets', 'fintwit', 'social buzz'],
   episodic_pivot: ['episodic pivot', 'reality change', 'pivot detected', 'pivot type', 'trade window', 'pricing status'],
   disruption: ['disruption', 'superlative product', 'six.dimension', 'moat trajectory', 'revenue materiality', 'forward disruption optionality', 'fdo', 'composite score.*tier', 'elite disruptor', 'competitive convergence'],
+  dislocation: ['dislocation', 'five pillar', 'triple validation', 'catalyst materiality', 'moat integrity', 'price.fundamental divergence', 'sentiment extreme', 'recovery catalyst', 'genuine deterioration', 'severe dislocation', 'guilt.by.association', 'competitive fear dislocation', 'cyclical.mistaken', 'narrative cascade', 'maximum dislocation'],
 }
 
 export function detectAgentType(text: string): string {
@@ -546,6 +548,7 @@ async function handleSaveCommand(
       portfolio_heat: 'Portfolio Heat', superlative_products: 'Superlative Products',
       episodic_pivot: 'Episodic Pivot',
       disruption: 'Disruption & Superlative',
+      dislocation: 'Dislocation Detection',
     }
 
     const confirmBlocks = {
