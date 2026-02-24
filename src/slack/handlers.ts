@@ -362,7 +362,7 @@ export async function processPortalResearch(
 const VALID_AGENTS = [
   'material_events', 'bias_mode', 'mag7_monitor', 'aomg_scanner',
   'hot_micro', 'hot_macro', 'doubler', 'ai_scorer', 'social_sentiment',
-  'portfolio_heat', 'superlative_products', 'episodic_pivot',
+  'portfolio_heat', 'superlative_products', 'episodic_pivot', 'disruption',
 ]
 
 const AGENT_DETECTION_KEYWORDS: Record<string, string[]> = {
@@ -436,7 +436,7 @@ async function handleSaveCommand(
           '`/save NVDA material_events <your research report>`\n' +
           '`/save NVDA <your research report>` _(auto-detects agent)_\n' +
           '`/save <your research report>` _(auto-detects tickers & agent)_\n\n' +
-          '*Agent types:* material_events, bias_mode, mag7_monitor, ai_scorer, hot_micro, hot_macro, doubler, aomg_scanner, social_sentiment\n\n' +
+          '*Agent types:* material_events, bias_mode, mag7_monitor, ai_scorer, hot_micro, hot_macro, doubler, aomg_scanner, social_sentiment, episodic_pivot, disruption\n\n' +
           '*Tip:* Paste your Claude Desktop report directly after the command. JSON blocks will be parsed automatically for structured data.'
         } },
       ]
