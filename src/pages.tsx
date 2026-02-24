@@ -1120,7 +1120,7 @@ function renderReportBlob(report, agentType, symbol) {
     // No report — show run button
     return '<div class="flex flex-col items-center gap-1">' +
       '<span class="text-gray-600 text-[10px]">No data</span>' +
-      '<button onclick="event.stopPropagation();runSingleAgent(\'' + agentType + '\',\'' + symbol + '\',this)" ' +
+      '<button onclick="event.stopPropagation();runSingleAgent(&#39;' + agentType + '&#39;,&#39;' + symbol + '&#39;,this)" ' +
         'class="px-2 py-0.5 text-[10px] font-semibold rounded border border-gray-600 text-gray-500 hover:text-white hover:border-gray-400 transition-colors">' +
         '<i class="fas fa-play mr-1"></i>Run</button></div>';
   }
@@ -1144,14 +1144,14 @@ function renderReportBlob(report, agentType, symbol) {
 
   const age = timeAgo(report.created_at);
 
-  return '<div class="cursor-pointer hover:bg-ekantik-surface/30 rounded px-1.5 py-1 -mx-1.5 transition-colors" onclick="event.stopPropagation();showReportDetail(\'' + report.id + '\', \'' + agentType + '\', \'' + symbol + '\')">' +
+  return '<div class="cursor-pointer hover:bg-ekantik-surface/30 rounded px-1.5 py-1 -mx-1.5 transition-colors" onclick="event.stopPropagation();showReportDetail(&#39;' + report.id + '&#39;, &#39;' + agentType + '&#39;, &#39;' + symbol + '&#39;)">' +
     '<div class="flex items-center gap-1.5 mb-0.5">' +
       impactBadge + scoreBadge +
       '<span class="text-gray-500 text-[9px] ml-auto">' + age + '</span>' +
     '</div>' +
     (takeaway ? '<p class="text-[10px] text-gray-400 leading-tight line-clamp-2">' + takeaway.replace(/</g,'&lt;').replace(/>/g,'&gt;') + '</p>' : '') +
     '<div class="flex items-center gap-1.5 mt-1">' +
-      '<button onclick="event.stopPropagation();runSingleAgent(\'' + agentType + '\',\'' + symbol + '\',this)" class="px-1.5 py-0.5 text-[9px] font-semibold rounded border border-gray-700 text-gray-500 hover:text-white hover:border-gray-400 transition-colors"><i class="fas fa-redo mr-0.5"></i>Rerun</button>' +
+      '<button onclick="event.stopPropagation();runSingleAgent(&#39;' + agentType + '&#39;,&#39;' + symbol + '&#39;,this)" class="px-1.5 py-0.5 text-[9px] font-semibold rounded border border-gray-700 text-gray-500 hover:text-white hover:border-gray-400 transition-colors"><i class="fas fa-redo mr-0.5"></i>Rerun</button>' +
     '</div></div>';
 }
 
@@ -1180,11 +1180,11 @@ function renderWatchlistTable() {
     const chgStr = t.price_change_pct != null ? chgSign + t.price_change_pct.toFixed(2) + '%' : '';
 
     return '<tr class="border-b border-ekantik-border/50 hover:bg-ekantik-surface/20 group align-top">' +
-      '<td class="px-4 py-3 cursor-pointer" onclick="location.href=\'/tickers/' + t.id + '\'">' +
+      '<td class="px-4 py-3 cursor-pointer" onclick="location.href=&#39;/tickers/' + t.id + '&#39;">' +
         '<span class="font-mono font-bold text-white text-sm">' + t.symbol + '</span>' +
         (t.is_mag7 ? '<span class="ml-1 px-1 py-0.5 bg-ekantik-gold/20 text-ekantik-gold rounded text-[8px] font-bold">M7</span>' : '') +
       '</td>' +
-      '<td class="px-4 py-3 text-gray-300 text-sm cursor-pointer" onclick="location.href=\'/tickers/' + t.id + '\'">' + (t.name || '') + '</td>' +
+      '<td class="px-4 py-3 text-gray-300 text-sm cursor-pointer" onclick="location.href=&#39;/tickers/' + t.id + '&#39;">' + (t.name || '') + '</td>' +
       '<td class="px-4 py-3 text-right">' +
         '<div class="text-white font-semibold text-sm">' + priceStr + '</div>' +
         (chgStr ? '<div class="text-[10px] ' + chgColor + ' font-semibold">' + chgStr + '</div>' : '') +
@@ -1193,7 +1193,7 @@ function renderWatchlistTable() {
       '<td class="px-4 py-3">' + renderReportBlob(t.bias_report, 'bias_mode', t.symbol) + '</td>' +
       '<td class="px-4 py-3">' + renderReportBlob(t.material_report, 'material_events', t.symbol) + '</td>' +
       '<td class="px-2 py-3 text-center">' +
-        '<button onclick="event.stopPropagation();removeTicker(\'' + t.symbol + '\')" class="opacity-0 group-hover:opacity-100 transition-opacity text-gray-500 hover:text-ekantik-red text-xs px-2 py-1 rounded hover:bg-ekantik-red/10" title="Remove">' +
+        '<button onclick="event.stopPropagation();removeTicker(&#39;' + t.symbol + '&#39;)" class="opacity-0 group-hover:opacity-100 transition-opacity text-gray-500 hover:text-ekantik-red text-xs px-2 py-1 rounded hover:bg-ekantik-red/10" title="Remove">' +
           '<i class="fas fa-times"></i></button>' +
       '</td>' +
     '</tr>';
@@ -1224,14 +1224,14 @@ function showReportDetail(reportId, agentType, symbol) {
     // Simple markdown-to-html: headers, bold, lists, code blocks
     let html = report.markdown
       .replace(/</g, '&lt;').replace(/>/g, '&gt;')
-      .replace(/^### (.+)\$/gm, '<h3 class="text-white font-bold text-sm mt-4 mb-1">\$1</h3>')
-      .replace(/^## (.+)\$/gm, '<h2 class="text-white font-bold text-base mt-5 mb-2">\$1</h2>')
-      .replace(/^# (.+)\$/gm, '<h1 class="text-white font-bold text-lg mt-5 mb-2">\$1</h1>')
-      .replace(/\*\*(.+?)\*\*/g, '<strong class="text-white">\$1</strong>')
-      .replace(/^\- (.+)\$/gm, '<li class="text-gray-300 text-sm ml-4">\$1</li>')
-      .replace(/^(\d+)\. (.+)\$/gm, '<li class="text-gray-300 text-sm ml-4">\$1. \$2</li>')
-      .replace(/\n{2,}/g, '<br/><br/>')
-      .replace(/\n/g, '<br/>');
+      .replace(new RegExp('^### (.+)$', 'gm'), '<h3 class="text-white font-bold text-sm mt-4 mb-1">$1</h3>')
+      .replace(new RegExp('^## (.+)$', 'gm'), '<h2 class="text-white font-bold text-base mt-5 mb-2">$1</h2>')
+      .replace(new RegExp('^# (.+)$', 'gm'), '<h1 class="text-white font-bold text-lg mt-5 mb-2">$1</h1>')
+      .replace(new RegExp('\\*\\*(.+?)\\*\\*', 'g'), '<strong class="text-white">$1</strong>')
+      .replace(new RegExp('^- (.+)$', 'gm'), '<li class="text-gray-300 text-sm ml-4">$1</li>')
+      .replace(new RegExp('^(\\d+)\\. (.+)$', 'gm'), '<li class="text-gray-300 text-sm ml-4">$1. $2</li>')
+      .replace(new RegExp('\\n{2,}', 'g'), '<br/><br/>')
+      .replace(new RegExp('\\n', 'g'), '<br/>');
     document.getElementById('report-detail-body').innerHTML = '<div class="text-gray-300 text-sm leading-relaxed">' + html + '</div>';
   } else {
     document.getElementById('report-detail-body').innerHTML = '<p class="text-gray-500">No report content available.</p>';
@@ -1294,7 +1294,7 @@ async function bulkRunAgent(agentType) {
   if (symbols.length === 0) { alert('No tickers in watchlist'); return; }
 
   const agentLabels = { episodic_pivot: 'Pivot', bias_mode: 'Bias', material_events: 'Material' };
-  if (!confirm('Run ' + (agentLabels[agentType]||agentType) + ' agent on all ' + symbols.length + ' watchlist tickers?\n\nThis will take ~30-90 seconds per ticker.')) return;
+  if (!confirm('Run ' + (agentLabels[agentType]||agentType) + ' agent on all ' + symbols.length + ' watchlist tickers?\\n\\nThis will take ~30-90 seconds per ticker.')) return;
 
   _bulkRunning = true;
   const progressDiv = document.getElementById('bulk-run-progress');
@@ -1398,7 +1398,7 @@ async function lookupTicker() {
           '<span class="text-gray-400 text-xs">' + (data.sector||'') + '</span>' +
         '</div>' +
         '<p class="text-gray-300 text-sm mb-2">' + (data.name||data.symbol) + '</p>' +
-        '<button onclick="addTicker(\'' + data.symbol + '\')" class="w-full py-2 bg-ekantik-accent text-white rounded-lg text-sm font-bold hover:bg-ekantik-accent/80">Add to Watchlist</button>' +
+        '<button onclick="addTicker(&#39;' + data.symbol + '&#39;)" class="w-full py-2 bg-ekantik-accent text-white rounded-lg text-sm font-bold hover:bg-ekantik-accent/80">Add to Watchlist</button>' +
       '</div>';
   } catch(e) {
     btn.innerHTML = '<i class="fas fa-search"></i>';
@@ -1441,7 +1441,7 @@ async function removeTicker(sym) {
 // ── Bulk Import Functions ────────────────────────────────────
 function parseBulkSymbols() {
   const raw = document.getElementById('bulk-import-input').value;
-  return [...new Set(raw.toUpperCase().split(/[,\n\r\t; |]+/).map(function(s) { return s.replace(/[^A-Z]/g, ''); }).filter(function(s) { return s.length >= 1 && s.length <= 5; }))];
+  return [...new Set(raw.toUpperCase().split(/[,\\n\\r\\t; |]+/).map(function(s) { return s.replace(/[^A-Z]/g, ''); }).filter(function(s) { return s.length >= 1 && s.length <= 5; }))];
 }
 
 function updateBulkCount() {
