@@ -258,8 +258,14 @@ apiRoutes.get('/watchlist', async (c) => {
       ORDER BY created_at DESC LIMIT 1
     `).bind(likePattern).first() as any
 
+    // Uploaded report file count
+    const fileCount = await c.env.DB.prepare(
+      'SELECT COUNT(*) as cnt FROM uploaded_reports WHERE ticker_symbol = ?'
+    ).bind(sym).first() as any
+
     return {
       ...t,
+      uploaded_file_count: fileCount?.cnt || 0,
       pivot_report: pivotReport ? {
         id: pivotReport.id,
         created_at: pivotReport.created_at,
@@ -509,6 +515,145 @@ apiRoutes.get('/watchlist/lookup/:symbol', async (c) => {
     alreadyInDb: !!existing,
     isWatchlist: existing?.is_watchlist === 1,
   })
+})
+
+// ============================================================
+// UPLOADED REPORTS — File attachments per watchlist ticker
+// ============================================================
+
+// List uploaded reports for a ticker (metadata only, no content)
+apiRoutes.get('/watchlist/:symbol/files', async (c) => {
+  const sym = c.req.param('symbol').toUpperCase().trim()
+  const { results } = await c.env.DB.prepare(`
+    SELECT id, ticker_symbol, file_name, file_type, file_size, notes, uploaded_by, created_at
+    FROM uploaded_reports WHERE ticker_symbol = ? ORDER BY created_at DESC
+  `).bind(sym).all() as any
+  return c.json({ files: results || [] })
+})
+
+// Upload a file for a ticker (multipart/form-data)
+apiRoutes.post('/watchlist/:symbol/files', async (c) => {
+  const sym = c.req.param('symbol').toUpperCase().trim()
+  if (!/^[A-Z]{1,5}$/.test(sym)) return c.json({ error: 'Invalid symbol' }, 400)
+
+  // Verify ticker is on watchlist
+  const ticker = await c.env.DB.prepare('SELECT id FROM tickers WHERE symbol = ? AND is_watchlist = 1').bind(sym).first()
+  if (!ticker) return c.json({ error: `${sym} is not on the watchlist` }, 404)
+
+  try {
+    const formData = await c.req.formData()
+    const file = formData.get('file') as File | null
+    const notes = (formData.get('notes') as string) || ''
+
+    if (!file) return c.json({ error: 'No file uploaded' }, 400)
+
+    // Validate file type
+    const allowedTypes = [
+      'text/plain', 'text/markdown', 'text/csv',
+      'application/pdf',
+      'application/msword',
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      'application/vnd.ms-excel',
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    ]
+    const allowedExts = ['.md', '.txt', '.csv', '.pdf', '.doc', '.docx', '.xls', '.xlsx']
+    const ext = '.' + (file.name.split('.').pop() || '').toLowerCase()
+
+    if (!allowedTypes.includes(file.type) && !allowedExts.includes(ext)) {
+      return c.json({ error: `File type not allowed. Supported: ${allowedExts.join(', ')}` }, 400)
+    }
+
+    // Max 5 MB
+    const MAX_SIZE = 5 * 1024 * 1024
+    if (file.size > MAX_SIZE) return c.json({ error: 'File too large (max 5 MB)' }, 400)
+
+    // Read file as ArrayBuffer and encode to base64
+    const buf = await file.arrayBuffer()
+    const bytes = new Uint8Array(buf)
+    let binary = ''
+    for (let i = 0; i < bytes.length; i++) {
+      binary += String.fromCharCode(bytes[i])
+    }
+    const b64 = btoa(binary)
+
+    const result = await c.env.DB.prepare(`
+      INSERT INTO uploaded_reports (ticker_symbol, file_name, file_type, file_size, content_b64, notes)
+      VALUES (?, ?, ?, ?, ?, ?)
+    `).bind(sym, file.name, file.type || 'application/octet-stream', file.size, b64, notes).run()
+
+    return c.json({
+      success: true,
+      file: {
+        id: result.meta.last_row_id,
+        ticker_symbol: sym,
+        file_name: file.name,
+        file_type: file.type,
+        file_size: file.size,
+        notes,
+      }
+    })
+  } catch (e: any) {
+    return c.json({ error: e.message || 'Upload failed' }, 500)
+  }
+})
+
+// Download a file (returns the original binary)
+apiRoutes.get('/watchlist/files/:id/download', async (c) => {
+  const id = c.req.param('id')
+  const row = await c.env.DB.prepare(
+    'SELECT file_name, file_type, content_b64 FROM uploaded_reports WHERE id = ?'
+  ).bind(id).first() as any
+  if (!row) return c.json({ error: 'File not found' }, 404)
+
+  // Decode base64 back to binary
+  const binary = atob(row.content_b64)
+  const bytes = new Uint8Array(binary.length)
+  for (let i = 0; i < binary.length; i++) {
+    bytes[i] = binary.charCodeAt(i)
+  }
+
+  return new Response(bytes.buffer, {
+    headers: {
+      'Content-Type': row.file_type || 'application/octet-stream',
+      'Content-Disposition': `attachment; filename="${row.file_name}"`,
+    }
+  })
+})
+
+// Preview a text-based file (returns rendered content for md/txt/csv)
+apiRoutes.get('/watchlist/files/:id/preview', async (c) => {
+  const id = c.req.param('id')
+  const row = await c.env.DB.prepare(
+    'SELECT file_name, file_type, content_b64 FROM uploaded_reports WHERE id = ?'
+  ).bind(id).first() as any
+  if (!row) return c.json({ error: 'File not found' }, 404)
+
+  const isText = row.file_type?.startsWith('text/') ||
+    row.file_name.endsWith('.md') || row.file_name.endsWith('.txt') || row.file_name.endsWith('.csv')
+
+  if (!isText) {
+    return c.json({ preview: null, file_name: row.file_name, file_type: row.file_type, message: 'Binary file — download to view' })
+  }
+
+  // Decode base64 to text
+  const binary = atob(row.content_b64)
+  const bytes = new Uint8Array(binary.length)
+  for (let i = 0; i < binary.length; i++) {
+    bytes[i] = binary.charCodeAt(i)
+  }
+  const text = new TextDecoder().decode(bytes)
+
+  return c.json({ preview: text, file_name: row.file_name, file_type: row.file_type })
+})
+
+// Delete a file
+apiRoutes.delete('/watchlist/files/:id', async (c) => {
+  const id = c.req.param('id')
+  const row = await c.env.DB.prepare('SELECT id, file_name FROM uploaded_reports WHERE id = ?').bind(id).first()
+  if (!row) return c.json({ error: 'File not found' }, 404)
+
+  await c.env.DB.prepare('DELETE FROM uploaded_reports WHERE id = ?').bind(id).run()
+  return c.json({ success: true })
 })
 
 apiRoutes.get('/tickers', async (c) => {
