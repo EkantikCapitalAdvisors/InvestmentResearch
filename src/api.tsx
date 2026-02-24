@@ -219,15 +219,78 @@ apiRoutes.get('/research/:id', async (c) => {
 // TICKERS & WATCHLIST
 // ============================================================
 apiRoutes.get('/watchlist', async (c) => {
-  const { results } = await c.env.DB.prepare(`
-    SELECT t.*, 
-      (SELECT composite FROM ai_scores WHERE ticker_id = t.id ORDER BY scored_at DESC LIMIT 1) as latest_ai_score,
-      (SELECT conviction_level FROM ai_scores WHERE ticker_id = t.id ORDER BY scored_at DESC LIMIT 1) as latest_conviction,
-      (SELECT impact_score FROM research_reports WHERE ticker_symbols LIKE '%' || t.symbol || '%' ORDER BY created_at DESC LIMIT 1) as latest_impact,
-      (SELECT episodic_pivot_json FROM research_reports WHERE ticker_symbols LIKE '%' || t.symbol || '%' AND episodic_pivot_json IS NOT NULL ORDER BY created_at DESC LIMIT 1) as latest_pivot_json
-    FROM tickers t WHERE t.is_watchlist = 1 ORDER BY t.pivot_watch DESC, t.is_mag7 DESC, t.symbol ASC
-  `).all()
-  return c.json({ tickers: results })
+  // Get watchlist tickers with basic info
+  const { results: tickers } = await c.env.DB.prepare(`
+    SELECT t.id, t.symbol, t.name, t.last_price, t.price_change_pct, t.is_mag7,
+           t.pivot_watch, t.pivot_watch_type, t.pivot_watch_notes
+    FROM tickers t WHERE t.is_watchlist = 1 ORDER BY t.symbol ASC
+  `).all() as any
+
+  // For each ticker, fetch latest report blob for pivot, bias, and material agents
+  const enriched = await Promise.all(tickers.map(async (t: any) => {
+    const sym = t.symbol
+    const likePattern = `%${sym}%`
+
+    // Latest episodic_pivot report
+    const pivotReport = await c.env.DB.prepare(`
+      SELECT id, created_at, impact_score, conviction_level, ai_composite_score,
+             structured_json, raw_markdown
+      FROM research_reports
+      WHERE agent_type = 'episodic_pivot' AND ticker_symbols LIKE ?
+      ORDER BY created_at DESC LIMIT 1
+    `).bind(likePattern).first() as any
+
+    // Latest bias_mode report
+    const biasReport = await c.env.DB.prepare(`
+      SELECT id, created_at, impact_score, conviction_level, ai_composite_score,
+             structured_json, raw_markdown
+      FROM research_reports
+      WHERE agent_type = 'bias_mode' AND ticker_symbols LIKE ?
+      ORDER BY created_at DESC LIMIT 1
+    `).bind(likePattern).first() as any
+
+    // Latest material_events report
+    const materialReport = await c.env.DB.prepare(`
+      SELECT id, created_at, impact_score, conviction_level, ai_composite_score,
+             structured_json, raw_markdown
+      FROM research_reports
+      WHERE agent_type = 'material_events' AND ticker_symbols LIKE ?
+      ORDER BY created_at DESC LIMIT 1
+    `).bind(likePattern).first() as any
+
+    return {
+      ...t,
+      pivot_report: pivotReport ? {
+        id: pivotReport.id,
+        created_at: pivotReport.created_at,
+        impact: pivotReport.impact_score,
+        conviction: pivotReport.conviction_level,
+        score: pivotReport.ai_composite_score,
+        json: pivotReport.structured_json,
+        markdown: pivotReport.raw_markdown,
+      } : null,
+      bias_report: biasReport ? {
+        id: biasReport.id,
+        created_at: biasReport.created_at,
+        impact: biasReport.impact_score,
+        conviction: biasReport.conviction_level,
+        score: biasReport.ai_composite_score,
+        json: biasReport.structured_json,
+        markdown: biasReport.raw_markdown,
+      } : null,
+      material_report: materialReport ? {
+        id: materialReport.id,
+        created_at: materialReport.created_at,
+        impact: materialReport.impact_score,
+        conviction: materialReport.conviction_level,
+        score: materialReport.ai_composite_score,
+        json: materialReport.structured_json,
+        markdown: materialReport.raw_markdown,
+      } : null,
+    }
+  }))
+
+  return c.json({ tickers: enriched })
 })
 
 // ── Toggle pivot watch on a ticker ──────────────────────────
@@ -390,6 +453,37 @@ apiRoutes.post('/watchlist/bulk-import', async (c) => {
     summary: { total: symbols.length, added, already_on_watchlist: existed, failed },
     results
   })
+})
+
+// ── Bulk-run a research agent across a single watchlist ticker ──
+// Client-side will call this per-ticker sequentially to show progress
+apiRoutes.post('/watchlist/run-agent', async (c) => {
+  const body = await c.req.json()
+  const { agentType, symbol } = body
+
+  const validAgents = ['episodic_pivot', 'bias_mode', 'material_events']
+  if (!agentType || !validAgents.includes(agentType)) {
+    return c.json({ error: `agentType must be one of: ${validAgents.join(', ')}` }, 400)
+  }
+  if (!symbol) return c.json({ error: 'symbol is required' }, 400)
+
+  const sym = symbol.toUpperCase().trim()
+  if (!c.env.ANTHROPIC_API_KEY) {
+    return c.json({ error: 'ANTHROPIC_API_KEY not configured' }, 500)
+  }
+
+  try {
+    const reportId = await processPortalResearch(
+      c.env.ANTHROPIC_API_KEY,
+      c.env.DB,
+      agentType,
+      [sym],
+    )
+    const report = await c.env.DB.prepare('SELECT id, created_at, impact_score, conviction_level, ai_composite_score, structured_json, raw_markdown FROM research_reports WHERE id = ?').bind(reportId).first() as any
+    return c.json({ success: true, reportId, report })
+  } catch (e: any) {
+    return c.json({ error: e.message || 'Research failed' }, 500)
+  }
 })
 
 // Search Yahoo for a ticker (validate before adding)

@@ -228,7 +228,7 @@ pageRoutes.get('/watchlist', (c) => {
         <div class="flex items-center justify-between mb-6">
           <div>
             <h1 class="text-2xl font-bold text-white">Watchlist <span class="text-ekantik-gold italic">Intelligence</span></h1>
-            <p class="text-gray-400 text-sm mt-1">Active surveillance on all tracked tickers with AI scoring</p>
+            <p class="text-gray-400 text-sm mt-1">Run Pivot, Bias, and Material agents — individually or in bulk</p>
           </div>
           <div class="flex items-center gap-3">
             <button onclick="document.getElementById('bulk-import-modal').classList.remove('hidden')" class="px-4 py-2 bg-ekantik-surface border border-ekantik-border rounded-lg text-sm font-semibold text-gray-300 hover:border-ekantik-accent/50 hover:text-ekantik-accent transition-colors flex items-center gap-2">
@@ -237,9 +237,35 @@ pageRoutes.get('/watchlist', (c) => {
             <button onclick="document.getElementById('add-ticker-modal').classList.remove('hidden')" class="px-4 py-2 bg-ekantik-accent/20 text-ekantik-accent border border-ekantik-accent/30 rounded-lg text-sm font-semibold hover:bg-ekantik-accent/30 transition-colors flex items-center gap-2">
               <i class="fas fa-plus"></i> Add Ticker
             </button>
-            <button onclick="document.getElementById('research-modal-wl').classList.remove('hidden')" class="px-4 py-2 bg-ekantik-gold text-ekantik-bg rounded-lg text-sm font-semibold hover:bg-ekantik-gold-light transition-colors flex items-center gap-2">
-              <i class="fas fa-bolt"></i> Run Research
-            </button>
+          </div>
+        </div>
+
+        {/* Bulk Run Controls */}
+        <div class="bg-ekantik-card border border-ekantik-border rounded-xl p-4 mb-4">
+          <div class="flex items-center justify-between">
+            <div class="flex items-center gap-2 text-xs text-gray-400 uppercase tracking-wider font-semibold">
+              <i class="fas fa-bolt text-ekantik-gold"></i> Bulk Run Across All Watchlist
+            </div>
+            <div class="flex items-center gap-2">
+              <button onclick="bulkRunAgent('episodic_pivot')" id="bulk-run-pivot-btn" class="px-3 py-1.5 bg-amber-500/10 text-amber-400 border border-amber-500/30 rounded-lg text-xs font-bold hover:bg-amber-500/20 transition-colors flex items-center gap-1.5">
+                <i class="fas fa-bolt"></i> Run All Pivot
+              </button>
+              <button onclick="bulkRunAgent('bias_mode')" id="bulk-run-bias-btn" class="px-3 py-1.5 bg-purple-500/10 text-purple-400 border border-purple-500/30 rounded-lg text-xs font-bold hover:bg-purple-500/20 transition-colors flex items-center gap-1.5">
+                <i class="fas fa-brain"></i> Run All Bias
+              </button>
+              <button onclick="bulkRunAgent('material_events')" id="bulk-run-material-btn" class="px-3 py-1.5 bg-blue-500/10 text-blue-400 border border-blue-500/30 rounded-lg text-xs font-bold hover:bg-blue-500/20 transition-colors flex items-center gap-1.5">
+                <i class="fas fa-newspaper"></i> Run All Material
+              </button>
+            </div>
+          </div>
+          <div id="bulk-run-progress" class="hidden mt-3">
+            <div class="flex items-center justify-between text-xs mb-1">
+              <span class="text-gray-400" id="bulk-run-label">Running...</span>
+              <span class="text-gray-400" id="bulk-run-pct">0/0</span>
+            </div>
+            <div class="w-full bg-ekantik-bg rounded-full h-1.5 overflow-hidden">
+              <div id="bulk-run-bar" class="bg-ekantik-gold h-full rounded-full transition-all duration-300" style="width: 0%"></div>
+            </div>
           </div>
         </div>
 
@@ -260,9 +286,7 @@ pageRoutes.get('/watchlist', (c) => {
                   </button>
                 </div>
               </div>
-              <div id="lookup-result" class="hidden">
-                {/* Filled dynamically by lookupTicker() */}
-              </div>
+              <div id="lookup-result" class="hidden"></div>
               <div id="add-status" class="text-xs text-gray-500"></div>
             </div>
           </div>
@@ -304,74 +328,14 @@ pageRoutes.get('/watchlist', (c) => {
           </div>
         </div>
 
-        {/* Quick Research Modal for Watchlist */}
-        <div id="research-modal-wl" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
-          <div class="bg-ekantik-card border border-ekantik-border rounded-2xl p-6 w-full max-w-lg shadow-2xl">
-            <div class="flex items-center justify-between mb-4">
-              <h3 class="text-lg font-bold text-white"><i class="fas fa-bolt mr-2 text-ekantik-gold"></i>Quick Research</h3>
-              <button onclick="document.getElementById('research-modal-wl').classList.add('hidden')" class="text-gray-400 hover:text-white"><i class="fas fa-times"></i></button>
+        {/* Report Detail Modal */}
+        <div id="report-detail-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" onclick="if(event.target===this)closeReportDetailModal()">
+          <div class="bg-ekantik-card border border-ekantik-border rounded-2xl w-full max-w-3xl max-h-[85vh] shadow-2xl flex flex-col mx-4">
+            <div class="flex items-center justify-between p-5 border-b border-ekantik-border shrink-0">
+              <h3 class="text-lg font-bold text-white" id="report-detail-title">Report</h3>
+              <button onclick="closeReportDetailModal()" class="text-gray-400 hover:text-white"><i class="fas fa-times"></i></button>
             </div>
-            <div class="space-y-4">
-              <div>
-                <label class="text-xs text-gray-400 uppercase tracking-wider block mb-1">Agent</label>
-                <select id="wl-run-agent" class="w-full bg-ekantik-bg border border-ekantik-border rounded-lg px-3 py-2.5 text-sm text-gray-300">
-                  <option value="material_events">Material Events Intelligence</option>
-                  <option value="bias_mode">Bias Mode Detection</option>
-                  <option value="ai_scorer">AI Scoring Framework</option>
-                  <option value="doubler">Doubling Potential Analysis</option>
-                  <option value="social_sentiment">Social Sentiment Scanner</option>
-                  <option value="episodic_pivot">Episodic Pivot Scanner</option>
-                  <option value="disruption">Disruption & Superlative Detection</option>
-                  <option value="dislocation">Dislocation Detection</option>
-                </select>
-              </div>
-              <div>
-                <label class="text-xs text-gray-400 uppercase tracking-wider block mb-1">Ticker</label>
-                <input id="wl-run-ticker" type="text" placeholder="NVDA" class="w-full bg-ekantik-bg border border-ekantik-border rounded-lg px-3 py-2.5 text-sm text-gray-300" />
-              </div>
-              <div class="flex items-center justify-between pt-2">
-                <span class="text-xs text-gray-500" id="wl-run-status"></span>
-                <button onclick="runWlResearch()" id="wl-run-btn" class="px-5 py-2.5 bg-ekantik-gold text-ekantik-bg rounded-lg text-sm font-bold hover:bg-ekantik-gold-light transition-colors"><i class="fas fa-play"></i> Execute</button>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Pivot Watch Modal */}
-        <div id="pivot-watch-modal" class="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 hidden items-center justify-center" onclick="if(event.target===this)closePivotWatchModal()">
-          <div class="bg-ekantik-card border border-amber-500/30 rounded-2xl w-full max-w-md mx-4">
-            <div class="flex items-center justify-between p-5 border-b border-ekantik-border">
-              <h3 class="text-lg font-bold text-white"><i class="fas fa-bolt mr-2 text-amber-400"></i>Pivot Watch — <span id="pw-symbol" class="text-amber-400"></span></h3>
-              <button onclick="closePivotWatchModal()" class="text-gray-400 hover:text-white"><i class="fas fa-times"></i></button>
-            </div>
-            <div class="p-5 space-y-4">
-              <p class="text-xs text-gray-400">Mark this ticker as being watched for a potential episodic pivot. You'll see it highlighted in the watchlist.</p>
-              <div>
-                <label class="block text-xs text-gray-400 mb-1">Expected Pivot Type</label>
-                <select id="pw-type" class="w-full bg-ekantik-bg border border-amber-500/30 rounded-lg px-3 py-2 text-white text-sm">
-                  <option value="">Any / Unknown</option>
-                  <option value="earnings_surprise">Earnings Surprise</option>
-                  <option value="regulatory_shift">Regulatory Shift</option>
-                  <option value="management_change">Management Change</option>
-                  <option value="product_inflection">Product Inflection</option>
-                  <option value="macro_regime">Macro Regime</option>
-                  <option value="geopolitical">Geopolitical</option>
-                  <option value="narrative_collapse">Narrative Collapse</option>
-                  <option value="competitive_moat">Competitive Moat</option>
-                  <option value="capital_event">Capital Event</option>
-                </select>
-              </div>
-              <div>
-                <label class="block text-xs text-gray-400 mb-1">Notes (what are you watching for?)</label>
-                <textarea id="pw-notes" rows={3} class="w-full bg-ekantik-bg border border-amber-500/30 rounded-lg px-3 py-2 text-white text-sm" placeholder="e.g. Earnings next week, expecting beat on cloud growth..."></textarea>
-              </div>
-            </div>
-            <div class="p-5 border-t border-ekantik-border flex justify-between gap-3">
-              <button onclick="removePivotWatch()" id="pw-remove-btn" class="hidden px-4 py-2 bg-ekantik-bg text-gray-400 rounded-lg text-sm hover:text-ekantik-red hover:bg-red-500/10">Remove Watch</button>
-              <div class="flex gap-3 ml-auto">
-                <button onclick="closePivotWatchModal()" class="px-4 py-2 bg-ekantik-bg text-gray-400 rounded-lg text-sm hover:text-white">Cancel</button>
-                <button onclick="savePivotWatch()" class="px-5 py-2 bg-amber-500 text-black rounded-lg text-sm font-semibold hover:bg-amber-400"><i class="fas fa-bolt mr-1"></i>Set Pivot Watch</button>
-              </div>
+            <div class="p-5 overflow-y-auto prose prose-invert prose-sm max-w-none" id="report-detail-body">
             </div>
           </div>
         </div>
@@ -1136,91 +1100,268 @@ async function shareToSlack(reportId, btnEl) {
 `
 
 const watchlistScript = `
+// Store watchlist data globally for re-rendering
+let _wlData = [];
+
+function timeAgo(dateStr) {
+  if (!dateStr) return '';
+  const d = new Date(dateStr + (dateStr.endsWith('Z') ? '' : 'Z'));
+  const diff = Date.now() - d.getTime();
+  const mins = Math.floor(diff / 60000);
+  if (mins < 60) return mins + 'm ago';
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return hrs + 'h ago';
+  const days = Math.floor(hrs / 24);
+  return days + 'd ago';
+}
+
+function renderReportBlob(report, agentType, symbol) {
+  if (!report) {
+    // No report — show run button
+    return '<div class="flex flex-col items-center gap-1">' +
+      '<span class="text-gray-600 text-[10px]">No data</span>' +
+      '<button onclick="event.stopPropagation();runSingleAgent(\'' + agentType + '\',\'' + symbol + '\',this)" ' +
+        'class="px-2 py-0.5 text-[10px] font-semibold rounded border border-gray-600 text-gray-500 hover:text-white hover:border-gray-400 transition-colors">' +
+        '<i class="fas fa-play mr-1"></i>Run</button></div>';
+  }
+
+  // Parse structured JSON for key_takeaway
+  let takeaway = '';
+  let impactBadge = '';
+  let scoreBadge = '';
+  try {
+    const j = typeof report.json === 'string' ? JSON.parse(report.json) : report.json;
+    if (j && j.key_takeaway) takeaway = j.key_takeaway.substring(0, 100) + (j.key_takeaway.length > 100 ? '...' : '');
+  } catch(e) {}
+
+  const impactColors = { H: 'bg-red-500/20 text-red-400', M: 'bg-amber-500/20 text-amber-400', L: 'bg-green-500/20 text-green-400' };
+  if (report.impact) {
+    impactBadge = '<span class="px-1.5 py-0.5 rounded text-[9px] font-bold ' + (impactColors[report.impact]||'') + '">' + report.impact + '</span>';
+  }
+  if (report.score) {
+    scoreBadge = '<span class="text-ekantik-gold text-[10px] font-bold">' + Number(report.score).toFixed(1) + '</span>';
+  }
+
+  const age = timeAgo(report.created_at);
+
+  return '<div class="cursor-pointer hover:bg-ekantik-surface/30 rounded px-1.5 py-1 -mx-1.5 transition-colors" onclick="event.stopPropagation();showReportDetail(\'' + report.id + '\', \'' + agentType + '\', \'' + symbol + '\')">' +
+    '<div class="flex items-center gap-1.5 mb-0.5">' +
+      impactBadge + scoreBadge +
+      '<span class="text-gray-500 text-[9px] ml-auto">' + age + '</span>' +
+    '</div>' +
+    (takeaway ? '<p class="text-[10px] text-gray-400 leading-tight line-clamp-2">' + takeaway.replace(/</g,'&lt;').replace(/>/g,'&gt;') + '</p>' : '') +
+    '<div class="flex items-center gap-1.5 mt-1">' +
+      '<button onclick="event.stopPropagation();runSingleAgent(\'' + agentType + '\',\'' + symbol + '\',this)" class="px-1.5 py-0.5 text-[9px] font-semibold rounded border border-gray-700 text-gray-500 hover:text-white hover:border-gray-400 transition-colors"><i class="fas fa-redo mr-0.5"></i>Rerun</button>' +
+    '</div></div>';
+}
+
+function renderWatchlistTable() {
+  const container = document.getElementById('watchlist-table');
+  const tickers = _wlData;
+
+  if (!tickers || tickers.length === 0) {
+    container.innerHTML = '<div class="text-center py-12 text-gray-500 p-6"><i class="fas fa-binoculars text-3xl mb-3"></i><p>No tickers in watchlist. Click <b>Add Ticker</b> to get started.</p></div>';
+    return;
+  }
+
+  container.innerHTML = '<div class="overflow-x-auto"><table class="w-full"><thead><tr class="border-b border-ekantik-border">' +
+    '<th class="text-left px-4 py-3 text-[10px] font-semibold text-gray-500 uppercase tracking-widest w-20">Ticker</th>' +
+    '<th class="text-left px-4 py-3 text-[10px] font-semibold text-gray-500 uppercase tracking-widest w-40">Name</th>' +
+    '<th class="text-right px-4 py-3 text-[10px] font-semibold text-gray-500 uppercase tracking-widest w-24">Last Price</th>' +
+    '<th class="px-4 py-3 text-[10px] font-semibold text-amber-400/70 uppercase tracking-widest w-56"><i class="fas fa-bolt mr-1"></i>Pivot</th>' +
+    '<th class="px-4 py-3 text-[10px] font-semibold text-purple-400/70 uppercase tracking-widest w-56"><i class="fas fa-brain mr-1"></i>Bias</th>' +
+    '<th class="px-4 py-3 text-[10px] font-semibold text-blue-400/70 uppercase tracking-widest w-56"><i class="fas fa-newspaper mr-1"></i>Material</th>' +
+    '<th class="text-center px-2 py-3 text-[10px] font-semibold text-gray-500 uppercase tracking-widest w-12"></th>' +
+  '</tr></thead><tbody>' +
+  tickers.map(function(t) {
+    const chgColor = (t.price_change_pct || 0) >= 0 ? 'text-ekantik-green' : 'text-ekantik-red';
+    const chgSign = (t.price_change_pct || 0) >= 0 ? '+' : '';
+    const priceStr = t.last_price ? '\$' + t.last_price.toFixed(2) : '—';
+    const chgStr = t.price_change_pct != null ? chgSign + t.price_change_pct.toFixed(2) + '%' : '';
+
+    return '<tr class="border-b border-ekantik-border/50 hover:bg-ekantik-surface/20 group align-top">' +
+      '<td class="px-4 py-3 cursor-pointer" onclick="location.href=\'/tickers/' + t.id + '\'">' +
+        '<span class="font-mono font-bold text-white text-sm">' + t.symbol + '</span>' +
+        (t.is_mag7 ? '<span class="ml-1 px-1 py-0.5 bg-ekantik-gold/20 text-ekantik-gold rounded text-[8px] font-bold">M7</span>' : '') +
+      '</td>' +
+      '<td class="px-4 py-3 text-gray-300 text-sm cursor-pointer" onclick="location.href=\'/tickers/' + t.id + '\'">' + (t.name || '') + '</td>' +
+      '<td class="px-4 py-3 text-right">' +
+        '<div class="text-white font-semibold text-sm">' + priceStr + '</div>' +
+        (chgStr ? '<div class="text-[10px] ' + chgColor + ' font-semibold">' + chgStr + '</div>' : '') +
+      '</td>' +
+      '<td class="px-4 py-3">' + renderReportBlob(t.pivot_report, 'episodic_pivot', t.symbol) + '</td>' +
+      '<td class="px-4 py-3">' + renderReportBlob(t.bias_report, 'bias_mode', t.symbol) + '</td>' +
+      '<td class="px-4 py-3">' + renderReportBlob(t.material_report, 'material_events', t.symbol) + '</td>' +
+      '<td class="px-2 py-3 text-center">' +
+        '<button onclick="event.stopPropagation();removeTicker(\'' + t.symbol + '\')" class="opacity-0 group-hover:opacity-100 transition-opacity text-gray-500 hover:text-ekantik-red text-xs px-2 py-1 rounded hover:bg-ekantik-red/10" title="Remove">' +
+          '<i class="fas fa-times"></i></button>' +
+      '</td>' +
+    '</tr>';
+  }).join('') + '</tbody></table></div>';
+}
+
+// Initial load
 (async () => {
   try {
     const res = await fetch('/api/watchlist');
     const { tickers } = await res.json();
-    const container = document.getElementById('watchlist-table');
-
-    if (!tickers || tickers.length === 0) {
-      container.innerHTML = '<div class="text-center py-12 text-gray-500 p-6"><i class="fas fa-binoculars text-3xl mb-3"></i><p>No tickers in watchlist. Click <b>Add Ticker</b> to get started.</p></div>';
-      return;
-    }
-
-    container.innerHTML = '<table class="w-full"><thead><tr class="border-b border-ekantik-border">' +
-      '<th class="text-left px-5 py-3 text-[10px] font-semibold text-gray-500 uppercase tracking-widest">Ticker</th>' +
-      '<th class="text-left px-5 py-3 text-[10px] font-semibold text-gray-500 uppercase tracking-widest">Name</th>' +
-      '<th class="text-center px-5 py-3 text-[10px] font-semibold text-gray-500 uppercase tracking-widest">Pivot Watch</th>' +
-      '<th class="text-right px-5 py-3 text-[10px] font-semibold text-gray-500 uppercase tracking-widest">Price</th>' +
-      '<th class="text-right px-5 py-3 text-[10px] font-semibold text-gray-500 uppercase tracking-widest">Change</th>' +
-      '<th class="text-right px-5 py-3 text-[10px] font-semibold text-gray-500 uppercase tracking-widest">AI Score</th>' +
-      '<th class="text-center px-5 py-3 text-[10px] font-semibold text-gray-500 uppercase tracking-widest">Conviction</th>' +
-      '<th class="text-center px-5 py-3 text-[10px] font-semibold text-gray-500 uppercase tracking-widest">Impact</th>' +
-      '<th class="text-right px-5 py-3 text-[10px] font-semibold text-gray-500 uppercase tracking-widest">Market Cap</th>' +
-      '<th class="text-center px-5 py-3 text-[10px] font-semibold text-gray-500 uppercase tracking-widest">Tags</th>' +
-      '<th class="text-center px-5 py-3 text-[10px] font-semibold text-gray-500 uppercase tracking-widest"></th>' +
-    '</tr></thead><tbody>' +
-    tickers.map(t => {
-      const chgColor = (t.price_change_pct || 0) >= 0 ? 'text-ekantik-green' : 'text-ekantik-red';
-      const chgSign = (t.price_change_pct || 0) >= 0 ? '+' : '';
-      const impactColors = { H: 'bg-red-500/20 text-red-400', M: 'bg-amber-500/20 text-amber-400', L: 'bg-green-500/20 text-green-400' };
-      const convColors = { HIGH: 'text-ekantik-green', MEDIUM: 'text-ekantik-amber', LOW: 'text-gray-400' };
-      const mcap = t.market_cap ? (t.market_cap >= 1e12 ? (t.market_cap/1e12).toFixed(1)+'T' : (t.market_cap/1e9).toFixed(0)+'B') : '—';
-
-      // Pivot watch badge + latest detected pivot
-      const pivotWatchIcons = {
-        earnings_surprise: '<i class="fas fa-chart-line"></i>',
-        regulatory_shift: '<i class="fas fa-landmark"></i>',
-        management_change: '<i class="fas fa-user-tie"></i>',
-        product_inflection: '<i class="fas fa-lightbulb"></i>',
-        macro_regime: '<i class="fas fa-university"></i>',
-        geopolitical: '<i class="fas fa-globe"></i>',
-        narrative_collapse: '<i class="fas fa-exclamation-triangle"></i>',
-        competitive_moat: '<i class="fas fa-shield-alt"></i>',
-        capital_event: '<i class="fas fa-dollar-sign"></i>',
-      };
-      let pivotCell = '';
-      if (t.pivot_watch) {
-        const pwType = t.pivot_watch_type ? (pivotWatchIcons[t.pivot_watch_type] || '') : '';
-        pivotCell = '<div class="flex items-center justify-center gap-1">' +
-          '<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/20 text-amber-400 border border-amber-500/30 cursor-pointer" onclick="event.stopPropagation();openPivotWatchModal(\\'' + t.symbol + '\\', true, \\'' + (t.pivot_watch_notes||'').replace(/'/g, "\\\\'") + '\\', \\'' + (t.pivot_watch_type||'') + '\\')" title="' + (t.pivot_watch_notes||'Watching for pivot').replace(/"/g,'&quot;') + '">' +
-            '<i class="fas fa-bolt"></i> ' + pwType + ' WATCHING' +
-          '</span></div>';
-      } else {
-        // Check if latest_pivot_json has a detected pivot
-        let latestPivot = null;
-        try { latestPivot = t.latest_pivot_json ? JSON.parse(t.latest_pivot_json) : null; } catch(e) {}
-        if (latestPivot && latestPivot.identified) {
-          const magCls = latestPivot.magnitude === 'high' ? 'bg-red-500/20 text-red-400' : latestPivot.magnitude === 'medium' ? 'bg-amber-500/20 text-amber-400' : 'bg-green-500/20 text-green-400';
-          pivotCell = '<div class="flex items-center justify-center gap-1">' +
-            '<span class="px-2 py-0.5 rounded text-[10px] font-semibold ' + magCls + '">' +
-              '<i class="fas fa-bolt mr-1"></i>DETECTED' +
-            '</span></div>';
-        } else {
-          pivotCell = '<button onclick="event.stopPropagation();openPivotWatchModal(\\'' + t.symbol + '\\', false, \\'\\', \\'\\')" class="text-gray-600 hover:text-amber-400 text-xs transition-colors" title="Set pivot watch"><i class="fas fa-eye"></i></button>';
-        }
-      }
-
-      return '<tr class="border-b border-ekantik-border/50 hover:bg-ekantik-surface/30 group ' + (t.pivot_watch ? 'border-l-2 border-l-amber-500/50' : '') + '">' +
-        '<td class="px-5 py-3 cursor-pointer" onclick="location.href=\\'/tickers/' + t.id + '\\'"><span class="font-mono font-bold text-white text-sm">' + t.symbol + '</span></td>' +
-        '<td class="px-5 py-3 text-gray-300 text-sm cursor-pointer" onclick="location.href=\\'/tickers/' + t.id + '\\'">' + t.name + '</td>' +
-        '<td class="px-5 py-3 text-center">' + pivotCell + '</td>' +
-        '<td class="px-5 py-3 text-right text-white font-semibold text-sm">$' + (t.last_price||0).toFixed(2) + '</td>' +
-        '<td class="px-5 py-3 text-right text-sm ' + chgColor + ' font-semibold">' + chgSign + (t.price_change_pct||0).toFixed(2) + '%</td>' +
-        '<td class="px-5 py-3 text-right"><span class="text-ekantik-gold font-bold text-sm">' + (t.latest_ai_score ? t.latest_ai_score.toFixed(1) : '—') + '</span></td>' +
-        '<td class="px-5 py-3 text-center text-xs font-semibold ' + (convColors[t.latest_conviction] || 'text-gray-500') + '">' + (t.latest_conviction || '—') + '</td>' +
-        '<td class="px-5 py-3 text-center">' + (t.latest_impact ? '<span class="px-2 py-0.5 rounded text-[10px] font-bold ' + (impactColors[t.latest_impact]||'') + '">' + t.latest_impact + '</span>' : '<span class="text-gray-500 text-xs">—</span>') + '</td>' +
-        '<td class="px-5 py-3 text-right text-gray-300 text-sm">$' + mcap + '</td>' +
-        '<td class="px-5 py-3 text-center">' + (t.is_mag7 ? '<span class="px-1.5 py-0.5 bg-ekantik-gold/20 text-ekantik-gold rounded text-[10px] font-bold">MAG7</span>' : '') + '</td>' +
-        '<td class="px-5 py-3 text-center">' +
-          '<button onclick="event.stopPropagation();removeTicker(\\'' + t.symbol + '\\')" class="opacity-0 group-hover:opacity-100 transition-opacity text-gray-500 hover:text-ekantik-red text-xs px-2 py-1 rounded hover:bg-ekantik-red/10" title="Remove from watchlist">' +
-            '<i class="fas fa-times"></i>' +
-          '</button>' +
-        '</td>' +
-      '</tr>';
-    }).join('') + '</tbody></table>';
+    _wlData = tickers || [];
+    renderWatchlistTable();
   } catch(e) { console.error('Watchlist load failed', e); }
 })();
+
+// ── Report Detail Modal ──────────────────────────────────
+function showReportDetail(reportId, agentType, symbol) {
+  const agentLabels = { episodic_pivot: 'Episodic Pivot', bias_mode: 'Bias Mode', material_events: 'Material Events' };
+  document.getElementById('report-detail-title').innerHTML = '<i class="fas fa-file-alt mr-2 text-ekantik-gold"></i>' + (agentLabels[agentType] || agentType) + ' — ' + symbol;
+
+  // Find report in cached data
+  const agentKey = agentType === 'episodic_pivot' ? 'pivot_report' : agentType === 'bias_mode' ? 'bias_report' : 'material_report';
+  const ticker = _wlData.find(function(t) { return t.symbol === symbol; });
+  const report = ticker ? ticker[agentKey] : null;
+
+  if (report && report.markdown) {
+    // Simple markdown-to-html: headers, bold, lists, code blocks
+    let html = report.markdown
+      .replace(/</g, '&lt;').replace(/>/g, '&gt;')
+      .replace(/^### (.+)\$/gm, '<h3 class="text-white font-bold text-sm mt-4 mb-1">\$1</h3>')
+      .replace(/^## (.+)\$/gm, '<h2 class="text-white font-bold text-base mt-5 mb-2">\$1</h2>')
+      .replace(/^# (.+)\$/gm, '<h1 class="text-white font-bold text-lg mt-5 mb-2">\$1</h1>')
+      .replace(/\*\*(.+?)\*\*/g, '<strong class="text-white">\$1</strong>')
+      .replace(/^\- (.+)\$/gm, '<li class="text-gray-300 text-sm ml-4">\$1</li>')
+      .replace(/^(\d+)\. (.+)\$/gm, '<li class="text-gray-300 text-sm ml-4">\$1. \$2</li>')
+      .replace(/\n{2,}/g, '<br/><br/>')
+      .replace(/\n/g, '<br/>');
+    document.getElementById('report-detail-body').innerHTML = '<div class="text-gray-300 text-sm leading-relaxed">' + html + '</div>';
+  } else {
+    document.getElementById('report-detail-body').innerHTML = '<p class="text-gray-500">No report content available.</p>';
+  }
+  document.getElementById('report-detail-modal').classList.remove('hidden');
+}
+
+function closeReportDetailModal() {
+  document.getElementById('report-detail-modal').classList.add('hidden');
+}
+
+// ── Run Single Agent ──────────────────────────────────────
+async function runSingleAgent(agentType, symbol, btnEl) {
+  const origHtml = btnEl.innerHTML;
+  btnEl.disabled = true;
+  btnEl.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+  btnEl.title = 'Running... (30-90s)';
+
+  try {
+    const res = await fetch('/api/watchlist/run-agent', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ agentType, symbol })
+    });
+    const data = await res.json();
+    if (data.error) {
+      alert('Error: ' + data.error);
+      btnEl.disabled = false;
+      btnEl.innerHTML = origHtml;
+      return;
+    }
+    // Update cached data and re-render
+    const agentKey = agentType === 'episodic_pivot' ? 'pivot_report' : agentType === 'bias_mode' ? 'bias_report' : 'material_report';
+    const ticker = _wlData.find(function(t) { return t.symbol === symbol; });
+    if (ticker && data.report) {
+      ticker[agentKey] = {
+        id: data.report.id,
+        created_at: data.report.created_at,
+        impact: data.report.impact_score,
+        conviction: data.report.conviction_level,
+        score: data.report.ai_composite_score,
+        json: data.report.structured_json,
+        markdown: data.report.raw_markdown,
+      };
+    }
+    renderWatchlistTable();
+  } catch(e) {
+    alert('Error: ' + e.message);
+    btnEl.disabled = false;
+    btnEl.innerHTML = origHtml;
+  }
+}
+
+// ── Bulk Run Agent ──────────────────────────────────────
+let _bulkRunning = false;
+
+async function bulkRunAgent(agentType) {
+  if (_bulkRunning) { alert('A bulk run is already in progress'); return; }
+  const symbols = _wlData.map(function(t) { return t.symbol; });
+  if (symbols.length === 0) { alert('No tickers in watchlist'); return; }
+
+  const agentLabels = { episodic_pivot: 'Pivot', bias_mode: 'Bias', material_events: 'Material' };
+  if (!confirm('Run ' + (agentLabels[agentType]||agentType) + ' agent on all ' + symbols.length + ' watchlist tickers?\n\nThis will take ~30-90 seconds per ticker.')) return;
+
+  _bulkRunning = true;
+  const progressDiv = document.getElementById('bulk-run-progress');
+  const labelEl = document.getElementById('bulk-run-label');
+  const pctEl = document.getElementById('bulk-run-pct');
+  const barEl = document.getElementById('bulk-run-bar');
+  progressDiv.classList.remove('hidden');
+
+  // Disable all bulk run buttons
+  ['pivot','bias','material'].forEach(function(k) {
+    const b = document.getElementById('bulk-run-' + k + '-btn');
+    if (b) b.disabled = true;
+  });
+
+  const agentKey = agentType === 'episodic_pivot' ? 'pivot_report' : agentType === 'bias_mode' ? 'bias_report' : 'material_report';
+  let completed = 0;
+  let failed = 0;
+
+  for (let i = 0; i < symbols.length; i++) {
+    const sym = symbols[i];
+    labelEl.textContent = (agentLabels[agentType]||agentType) + ': ' + sym + '...';
+    pctEl.textContent = (i+1) + '/' + symbols.length;
+    barEl.style.width = ((i / symbols.length) * 100) + '%';
+
+    try {
+      const res = await fetch('/api/watchlist/run-agent', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ agentType, symbol: sym })
+      });
+      const data = await res.json();
+      if (data.error) {
+        failed++;
+      } else {
+        completed++;
+        const ticker = _wlData.find(function(t) { return t.symbol === sym; });
+        if (ticker && data.report) {
+          ticker[agentKey] = {
+            id: data.report.id,
+            created_at: data.report.created_at,
+            impact: data.report.impact_score,
+            conviction: data.report.conviction_level,
+            score: data.report.ai_composite_score,
+            json: data.report.structured_json,
+            markdown: data.report.raw_markdown,
+          };
+        }
+        renderWatchlistTable();
+      }
+    } catch(e) {
+      failed++;
+    }
+  }
+
+  barEl.style.width = '100%';
+  labelEl.textContent = 'Done: ' + completed + ' completed, ' + failed + ' failed';
+  pctEl.textContent = symbols.length + '/' + symbols.length;
+
+  // Re-enable buttons
+  ['pivot','bias','material'].forEach(function(k) {
+    const b = document.getElementById('bulk-run-' + k + '-btn');
+    if (b) b.disabled = false;
+  });
+  _bulkRunning = false;
+
+  setTimeout(function() { progressDiv.classList.add('hidden'); }, 5000);
+}
 
 // ── Add Ticker Functions ────────────────────────────────────
 function closeAddModal() {
@@ -1234,132 +1375,82 @@ function closeAddModal() {
 async function lookupTicker() {
   const input = document.getElementById('add-ticker-input');
   const sym = input.value.toUpperCase().trim();
-  if (!sym || !/^[A-Z]{1,5}$/.test(sym)) { alert('Enter a valid ticker symbol (1-5 letters)'); return; }
+  if (!sym || !/^[A-Z]{1,5}\$/.test(sym)) { alert('Enter a valid ticker symbol (1-5 letters)'); return; }
 
   const btn = document.getElementById('lookup-btn');
   btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
   const resultDiv = document.getElementById('lookup-result');
   const statusDiv = document.getElementById('add-status');
   resultDiv.classList.add('hidden');
-  statusDiv.textContent = 'Looking up ' + sym + ' on Yahoo Finance...';
+  statusDiv.textContent = 'Looking up ' + sym + '...';
 
   try {
     const res = await fetch('/api/watchlist/lookup/' + sym);
     const data = await res.json();
-
-    if (!res.ok) {
-      statusDiv.textContent = data.error || 'Ticker not found';
-      btn.innerHTML = '<i class="fas fa-search"></i>';
-      return;
-    }
-
+    btn.innerHTML = '<i class="fas fa-search"></i>';
+    if (data.error) { statusDiv.textContent = data.error; return; }
     statusDiv.textContent = '';
-    const mcap = data.marketCap ? (data.marketCap >= 1e12 ? '$' + (data.marketCap/1e12).toFixed(2) + 'T' : '$' + (data.marketCap/1e9).toFixed(0) + 'B') : '—';
-    const chgColor = (data.changePercent || 0) >= 0 ? 'text-ekantik-green' : 'text-ekantik-red';
-    const chgSign = (data.changePercent || 0) >= 0 ? '+' : '';
-
-    let actionHtml = '';
-    if (data.isWatchlist) {
-      actionHtml = '<div class="mt-3 text-center"><span class="text-ekantik-amber text-sm font-semibold"><i class="fas fa-check-circle mr-1"></i>Already on watchlist</span></div>';
-    } else {
-      actionHtml = '<div class="mt-3 text-center"><button onclick="addTicker(\\'' + data.symbol + '\\')" id="add-confirm-btn" class="px-5 py-2 bg-ekantik-green text-white rounded-lg text-sm font-bold hover:bg-ekantik-green/80 transition-colors"><i class="fas fa-plus mr-1"></i>Add ' + data.symbol + ' to Watchlist</button></div>';
-    }
-
-    resultDiv.innerHTML =
-      '<div class="bg-ekantik-bg border border-ekantik-border rounded-lg p-4">' +
-        '<div class="flex items-center justify-between mb-2">' +
-          '<div>' +
-            '<span class="font-mono font-bold text-white text-lg">' + data.symbol + '</span>' +
-            '<span class="text-gray-400 text-sm ml-2">' + (data.name || '') + '</span>' +
-          '</div>' +
-          '<div class="text-right">' +
-            '<div class="text-white font-bold">$' + (data.price||0).toFixed(2) + '</div>' +
-            '<div class="text-xs font-semibold ' + chgColor + '">' + chgSign + (data.changePercent||0).toFixed(2) + '%</div>' +
-          '</div>' +
-        '</div>' +
-        '<div class="grid grid-cols-3 gap-3 text-xs">' +
-          '<div><span class="text-gray-500 block">Sector</span><span class="text-gray-300">' + (data.sector || '—') + '</span></div>' +
-          '<div><span class="text-gray-500 block">Market Cap</span><span class="text-gray-300">' + mcap + '</span></div>' +
-          '<div><span class="text-gray-500 block">Fwd P/E</span><span class="text-gray-300">' + (data.forwardPE ? data.forwardPE.toFixed(1) + 'x' : '—') + '</span></div>' +
-        '</div>' +
-        actionHtml +
-      '</div>';
     resultDiv.classList.remove('hidden');
+    resultDiv.innerHTML =
+      '<div class="bg-ekantik-surface border border-ekantik-border rounded-lg p-3">' +
+        '<div class="flex items-center justify-between mb-2">' +
+          '<span class="font-mono font-bold text-white">' + data.symbol + '</span>' +
+          '<span class="text-gray-400 text-xs">' + (data.sector||'') + '</span>' +
+        '</div>' +
+        '<p class="text-gray-300 text-sm mb-2">' + (data.name||data.symbol) + '</p>' +
+        '<button onclick="addTicker(\'' + data.symbol + '\')" class="w-full py-2 bg-ekantik-accent text-white rounded-lg text-sm font-bold hover:bg-ekantik-accent/80">Add to Watchlist</button>' +
+      '</div>';
   } catch(e) {
+    btn.innerHTML = '<i class="fas fa-search"></i>';
     statusDiv.textContent = 'Error: ' + e.message;
   }
-  btn.innerHTML = '<i class="fas fa-search"></i>';
 }
 
-async function addTicker(symbol) {
-  const btn = document.getElementById('add-confirm-btn');
+async function addTicker(sym) {
   const statusDiv = document.getElementById('add-status');
-  btn.disabled = true;
-  btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i>Adding...';
-  statusDiv.textContent = '';
-
+  statusDiv.textContent = 'Adding ' + sym + '...';
   try {
     const res = await fetch('/api/watchlist/add', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ symbol })
+      body: JSON.stringify({ symbol: sym })
     });
     const data = await res.json();
-
-    if (!res.ok) {
-      statusDiv.textContent = data.error || 'Failed to add';
-      btn.disabled = false;
-      btn.innerHTML = '<i class="fas fa-plus mr-1"></i>Add ' + symbol + ' to Watchlist';
-      return;
-    }
-
-    btn.innerHTML = '<i class="fas fa-check mr-1"></i>Added!';
-    btn.classList.remove('bg-ekantik-green');
-    btn.classList.add('bg-ekantik-green/50');
-    statusDiv.textContent = symbol + ' added to watchlist. Reloading...';
-    setTimeout(() => { closeAddModal(); location.reload(); }, 800);
-  } catch(e) {
-    statusDiv.textContent = 'Error: ' + e.message;
-    btn.disabled = false;
-    btn.innerHTML = '<i class="fas fa-plus mr-1"></i>Add ' + symbol + ' to Watchlist';
-  }
+    if (data.error) { statusDiv.textContent = data.error; return; }
+    closeAddModal();
+    location.reload();
+  } catch(e) { statusDiv.textContent = 'Error: ' + e.message; }
 }
 
-// ── Remove Ticker Function ──────────────────────────────────
-async function removeTicker(symbol) {
-  if (!confirm('Remove ' + symbol + ' from watchlist?')) return;
+async function removeTicker(sym) {
+  if (!confirm('Remove ' + sym + ' from watchlist?')) return;
   try {
     const res = await fetch('/api/watchlist/remove', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ symbol })
+      body: JSON.stringify({ symbol: sym })
     });
     const data = await res.json();
-    if (res.ok) {
-      location.reload();
-    } else {
-      alert(data.error || 'Failed to remove');
+    if (data.success) {
+      _wlData = _wlData.filter(function(t) { return t.symbol !== sym; });
+      renderWatchlistTable();
     }
   } catch(e) { alert('Error: ' + e.message); }
 }
 
-// ── Bulk Import Functions ──────────────────────────────────────
+// ── Bulk Import Functions ────────────────────────────────────
 function parseBulkSymbols() {
   const raw = document.getElementById('bulk-import-input').value;
-  const symbols = raw.split(/[,\\n\\r\\t;|\\s]+/).map(s => s.toUpperCase().replace(/[^A-Z]/g, '')).filter(s => s.length >= 1 && s.length <= 5);
-  return [...new Set(symbols)];
+  return [...new Set(raw.toUpperCase().split(/[,\n\r\t; |]+/).map(function(s) { return s.replace(/[^A-Z]/g, ''); }).filter(function(s) { return s.length >= 1 && s.length <= 5; }))];
 }
 
 function updateBulkCount() {
-  const symbols = parseBulkSymbols();
-  const countEl = document.getElementById('bulk-import-count');
-  countEl.textContent = symbols.length + ' ticker' + (symbols.length !== 1 ? 's' : '') + ' detected';
-  countEl.classList.toggle('text-ekantik-accent', symbols.length > 0);
-  countEl.classList.toggle('text-gray-500', symbols.length === 0);
+  const syms = parseBulkSymbols();
+  const el = document.getElementById('bulk-import-count');
+  el.textContent = syms.length + ' ticker' + (syms.length !== 1 ? 's' : '') + ' detected';
+  el.className = syms.length > 0 ? 'text-xs text-ekantik-accent font-semibold' : 'text-xs text-gray-500';
 }
-
-// Live counter on input
-document.getElementById('bulk-import-input')?.addEventListener('input', updateBulkCount);
+document.getElementById('bulk-import-input').addEventListener('input', updateBulkCount);
 
 function closeBulkImportModal() {
   document.getElementById('bulk-import-modal').classList.add('hidden');
@@ -1368,95 +1459,53 @@ function closeBulkImportModal() {
   document.getElementById('bulk-import-results').classList.add('hidden');
   document.getElementById('bulk-import-results').innerHTML = '';
   document.getElementById('bulk-import-status').textContent = '';
-  document.getElementById('bulk-import-btn').disabled = false;
-  document.getElementById('bulk-import-btn').innerHTML = '<i class="fas fa-upload mr-1"></i> Import All';
+  const btn = document.getElementById('bulk-import-btn');
+  btn.disabled = false;
+  btn.innerHTML = '<i class="fas fa-upload"></i> Import All';
   updateBulkCount();
 }
 
 async function executeBulkImport() {
   const symbols = parseBulkSymbols();
-  if (symbols.length === 0) {
-    document.getElementById('bulk-import-status').textContent = 'No valid tickers to import';
-    return;
-  }
-  if (symbols.length > 100) {
-    document.getElementById('bulk-import-status').textContent = 'Maximum 100 tickers per import';
-    return;
-  }
+  if (symbols.length === 0) { alert('No valid tickers to import'); return; }
+  if (symbols.length > 100) { alert('Maximum 100 tickers per import'); return; }
 
   const btn = document.getElementById('bulk-import-btn');
   const statusEl = document.getElementById('bulk-import-status');
   const progressDiv = document.getElementById('bulk-import-progress');
   const progressBar = document.getElementById('bulk-progress-bar');
-  const progressLabel = document.getElementById('bulk-progress-label');
   const progressPct = document.getElementById('bulk-progress-pct');
-  const resultsDiv = document.getElementById('bulk-import-results');
 
   btn.disabled = true;
-  btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i> Importing...';
-  statusEl.textContent = '';
+  btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Importing...';
   progressDiv.classList.remove('hidden');
-  resultsDiv.classList.add('hidden');
   progressBar.style.width = '10%';
-  progressLabel.textContent = 'Importing ' + symbols.length + ' tickers...';
-  progressPct.textContent = '0%';
+  progressPct.textContent = '10%';
 
   try {
-    // Animate progress to ~40% while waiting
-    progressBar.style.width = '40%';
-    progressPct.textContent = '40%';
-
+    setTimeout(function() { progressBar.style.width = '40%'; progressPct.textContent = '40%'; }, 500);
     const res = await fetch('/api/watchlist/bulk-import', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ symbols })
     });
-
-    progressBar.style.width = '80%';
-    progressPct.textContent = '80%';
-
+    progressBar.style.width = '80%'; progressPct.textContent = '80%';
     const data = await res.json();
+    progressBar.style.width = '100%'; progressPct.textContent = '100%';
 
-    progressBar.style.width = '100%';
-    progressPct.textContent = '100%';
-    progressLabel.textContent = 'Complete!';
+    if (data.error) { statusEl.textContent = data.error; btn.disabled = false; btn.innerHTML = '<i class="fas fa-upload"></i> Retry'; return; }
 
-    if (!res.ok) {
-      statusEl.textContent = data.error || 'Import failed';
-      btn.disabled = false;
-      btn.innerHTML = '<i class="fas fa-upload mr-1"></i> Retry';
-      return;
-    }
-
-    // Show results summary
-    const s = data.summary;
-    let html = '<div class="bg-ekantik-bg border border-ekantik-border rounded-lg p-4 space-y-3">';
-    html += '<div class="grid grid-cols-3 gap-3 text-center">';
-    html += '<div><div class="text-xl font-bold text-ekantik-green">' + s.added + '</div><div class="text-[10px] text-gray-500 uppercase">Added</div></div>';
-    html += '<div><div class="text-xl font-bold text-ekantik-amber">' + s.already_on_watchlist + '</div><div class="text-[10px] text-gray-500 uppercase">Already</div></div>';
-    html += '<div><div class="text-xl font-bold text-ekantik-red">' + s.failed + '</div><div class="text-[10px] text-gray-500 uppercase">Failed</div></div>';
-    html += '</div>';
-
-    // Show failures if any
-    const failures = data.results.filter(function(r) { return r.status === 'failed'; });
-    if (failures.length > 0) {
-      html += '<div class="border-t border-ekantik-border pt-2">';
-      html += '<p class="text-xs text-gray-400 mb-1">Failed tickers:</p>';
-      html += '<div class="flex flex-wrap gap-1">';
-      failures.forEach(function(f) {
-        html += '<span class="px-2 py-0.5 bg-red-500/10 text-red-400 rounded text-xs font-mono" title="' + (f.error || '').replace(/"/g, '&quot;') + '">' + f.symbol + '</span>';
-      });
-      html += '</div></div>';
-    }
-    html += '</div>';
-
-    resultsDiv.innerHTML = html;
+    const resultsDiv = document.getElementById('bulk-import-results');
     resultsDiv.classList.remove('hidden');
+    const s = data.summary;
+    let html = '<div class="bg-ekantik-surface rounded-lg p-3 text-xs space-y-1">' +
+      '<div class="flex justify-between"><span class="text-green-400">Added:</span><span class="text-white font-bold">' + s.added + '</span></div>' +
+      '<div class="flex justify-between"><span class="text-gray-400">Already on watchlist:</span><span class="text-white">' + s.already_on_watchlist + '</span></div>' +
+      '<div class="flex justify-between"><span class="text-red-400">Failed:</span><span class="text-white">' + s.failed + '</span></div></div>';
+    resultsDiv.innerHTML = html;
 
     if (s.added > 0) {
-      btn.innerHTML = '<i class="fas fa-check mr-1"></i> Done — Reloading...';
-      btn.classList.remove('bg-ekantik-accent');
-      btn.classList.add('bg-ekantik-green');
+      btn.innerHTML = '<i class="fas fa-check"></i> Done — Reloading...';
       setTimeout(function() { closeBulkImportModal(); location.reload(); }, 1500);
     } else {
       btn.disabled = false;
@@ -1473,92 +1522,6 @@ async function executeBulkImport() {
   }
 }
 
-async function runWlResearch() {
-  const agent = document.getElementById('wl-run-agent').value;
-  const tickerStr = document.getElementById('wl-run-ticker').value;
-  const btn = document.getElementById('wl-run-btn');
-  const status = document.getElementById('wl-run-status');
-
-  const tickers = tickerStr.toUpperCase().split(/[\\s,]+/).filter(t => /^[A-Z]{1,5}$/.test(t));
-  if (tickers.length === 0) { alert('Please enter at least one ticker symbol'); return; }
-
-  btn.disabled = true;
-  btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Researching...';
-  status.textContent = 'Claude is analyzing with web search — typically 30-90 seconds...';
-
-  try {
-    const res = await fetch('/api/research/run', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ agentType: agent, tickers })
-    });
-    const data = await res.json();
-    if (data.error) {
-      status.textContent = 'Error: ' + data.error;
-      btn.disabled = false;
-      btn.innerHTML = '<i class="fas fa-play"></i> Execute';
-      return;
-    }
-    status.textContent = 'Research complete! Reloading...';
-    document.getElementById('research-modal-wl').classList.add('hidden');
-    setTimeout(() => location.reload(), 500);
-  } catch(e) {
-    status.textContent = 'Error: ' + e.message;
-    btn.disabled = false;
-    btn.innerHTML = '<i class="fas fa-play"></i> Execute';
-  }
-}
-
-// ── Pivot Watch Functions ──────────────────────────────────────
-let _pwSymbol = '';
-
-function openPivotWatchModal(symbol, isWatching, notes, type) {
-  _pwSymbol = symbol;
-  document.getElementById('pw-symbol').textContent = symbol;
-  document.getElementById('pw-type').value = type || '';
-  document.getElementById('pw-notes').value = notes || '';
-  document.getElementById('pw-remove-btn').classList.toggle('hidden', !isWatching);
-  document.getElementById('pivot-watch-modal').classList.remove('hidden');
-  document.getElementById('pivot-watch-modal').classList.add('flex');
-}
-
-function closePivotWatchModal() {
-  document.getElementById('pivot-watch-modal').classList.add('hidden');
-  document.getElementById('pivot-watch-modal').classList.remove('flex');
-  _pwSymbol = '';
-}
-
-async function savePivotWatch() {
-  if (!_pwSymbol) return;
-  try {
-    await fetch('/api/watchlist/pivot-watch', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        symbol: _pwSymbol,
-        pivot_watch: true,
-        pivot_watch_notes: document.getElementById('pw-notes').value.trim() || null,
-        pivot_watch_type: document.getElementById('pw-type').value || null,
-      })
-    });
-    closePivotWatchModal();
-    location.reload();
-  } catch(e) { alert('Error: ' + e.message); }
-}
-
-async function removePivotWatch() {
-  if (!_pwSymbol) return;
-  if (!confirm('Remove pivot watch from ' + _pwSymbol + '?')) return;
-  try {
-    await fetch('/api/watchlist/pivot-watch', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ symbol: _pwSymbol, pivot_watch: false })
-    });
-    closePivotWatchModal();
-    location.reload();
-  } catch(e) { alert('Error: ' + e.message); }
-}
 `
 
 const tickerDetailScript = `
