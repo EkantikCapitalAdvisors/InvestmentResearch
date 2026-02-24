@@ -98,6 +98,7 @@ slackRoutes.post('/commands', async (c) => {
     '/doubler': { agent: 'doubler', needsTicker: true, description: 'Doubling Potential Analysis' },
     '/sentiment': { agent: 'social_sentiment', needsTicker: false, description: 'Social Sentiment Scanner' },
     '/pivot': { agent: 'episodic_pivot', needsTicker: true, description: 'Episodic Pivot Scanner' },
+    '/disruption': { agent: 'disruption', needsTicker: true, description: 'Disruption & Superlative Detection' },
   }
 
   // ─────────────────────────────────────────────────────────
@@ -247,7 +248,7 @@ slackRoutes.get('/health', (c) => {
   return c.json({
     status: 'ok',
     service: 'ekantik-slack',
-    commands: ['/material', '/bias', '/mag7', '/score', '/heat', '/watch', '/aomg', '/trend', '/macro', '/doubler', '/sentiment', '/pivot', '/save'],
+    commands: ['/material', '/bias', '/mag7', '/score', '/heat', '/watch', '/aomg', '/trend', '/macro', '/doubler', '/sentiment', '/pivot', '/disruption', '/save'],
     version: '3.0.0',
   })
 })
@@ -375,6 +376,7 @@ const AGENT_DETECTION_KEYWORDS: Record<string, string[]> = {
   aomg_scanner: ['aomg', 'area of maximum growth', 'tam.*sam.*som'],
   social_sentiment: ['social sentiment', 'reddit', 'wsb', 'wallstreetbets', 'fintwit', 'social buzz'],
   episodic_pivot: ['episodic pivot', 'reality change', 'pivot detected', 'pivot type', 'trade window', 'pricing status'],
+  disruption: ['disruption', 'superlative product', 'six.dimension', 'moat trajectory', 'revenue materiality', 'forward disruption optionality', 'fdo', 'composite score.*tier', 'elite disruptor', 'competitive convergence'],
 }
 
 export function detectAgentType(text: string): string {
@@ -543,6 +545,7 @@ async function handleSaveCommand(
       doubler: 'Doubler', aomg_scanner: 'AOMG Scanner', social_sentiment: 'Social Sentiment',
       portfolio_heat: 'Portfolio Heat', superlative_products: 'Superlative Products',
       episodic_pivot: 'Episodic Pivot',
+      disruption: 'Disruption & Superlative',
     }
 
     const confirmBlocks = {
