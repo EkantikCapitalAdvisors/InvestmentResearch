@@ -10,6 +10,7 @@ type Bindings = {
   ANTHROPIC_API_KEY: string
   SLACK_BOT_TOKEN?: string
   SLACK_SIGNING_SECRET?: string
+  RESEARCH_PASSCODE?: string
 }
 
 const app = new Hono<{ Bindings: Bindings }>()

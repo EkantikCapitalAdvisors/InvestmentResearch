@@ -37,6 +37,82 @@ export const renderer = jsxRenderer(({ children, title }) => {
             }
           }
         `}} />
+        <script dangerouslySetInnerHTML={{ __html: `
+          // ── Research Passcode Gate ──────────────────────────────
+          // Stored in sessionStorage; cleared when tab closes.
+          window._passcodeRequired = null; // cached flag
+
+          async function isPasscodeRequired() {
+            if (window._passcodeRequired !== null) return window._passcodeRequired;
+            try {
+              var r = await fetch('/api/auth/passcode-required');
+              var d = await r.json();
+              window._passcodeRequired = !!d.required;
+            } catch(e) { window._passcodeRequired = false; }
+            return window._passcodeRequired;
+          }
+
+          function getStoredPasscode() {
+            return sessionStorage.getItem('ekantik_passcode') || '';
+          }
+
+          // Prompt user for passcode, verify it server-side, store in session.
+          // Returns the valid passcode string or null if cancelled/failed.
+          async function promptPasscode() {
+            var stored = getStoredPasscode();
+            if (stored) return stored;
+
+            var required = await isPasscodeRequired();
+            if (!required) return '__NONE__';
+
+            var code = prompt('Enter research passcode to run AI agents:');
+            if (!code) return null;
+
+            try {
+              var r = await fetch('/api/auth/verify-passcode', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ passcode: code })
+              });
+              var d = await r.json();
+              if (d.valid) {
+                sessionStorage.setItem('ekantik_passcode', code);
+                return code;
+              } else {
+                alert('Invalid passcode. Please try again.');
+                return null;
+              }
+            } catch(e) {
+              alert('Could not verify passcode: ' + e.message);
+              return null;
+            }
+          }
+
+          // Returns headers object with passcode (for use in fetch calls).
+          // Call with await — prompts if needed. Returns null if user cancels.
+          async function passcodeHeaders() {
+            var code = await promptPasscode();
+            if (code === null) return null;
+            if (code === '__NONE__') return {};
+            return { 'X-Research-Passcode': code };
+          }
+
+          // Convenience: merge passcode header into an existing headers object.
+          async function withPasscode(existingHeaders) {
+            var ph = await passcodeHeaders();
+            if (ph === null) return null;
+            return Object.assign({}, existingHeaders || {}, ph);
+          }
+
+          // On 401/403 with PASSCODE codes, clear stored passcode so user is re-prompted.
+          function handlePasscodeError(data) {
+            if (data && (data.code === 'PASSCODE_REQUIRED' || data.code === 'PASSCODE_INVALID')) {
+              sessionStorage.removeItem('ekantik_passcode');
+              return true;
+            }
+            return false;
+          }
+        `}} />
         <style dangerouslySetInnerHTML={{ __html: `
           * { font-family: 'Inter', sans-serif; }
           body { background: #0a0f1e; color: #f9fafb; }

@@ -1046,15 +1046,32 @@ async function runResearch() {
 
   btn.disabled = true;
   btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Researching...';
+  status.textContent = '';
+
+  // Passcode gate
+  const pHeaders = await withPasscode({ 'Content-Type': 'application/json' });
+  if (pHeaders === null) {
+    btn.disabled = false;
+    btn.innerHTML = '<i class="fas fa-play"></i> Execute Research';
+    return;
+  }
+
   status.textContent = 'Claude is analyzing with web search — typically 30-90 seconds...';
 
   try {
     const res = await fetch('/api/research/run', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: pHeaders,
       body: JSON.stringify({ agentType: agent, tickers, additionalContext: context || undefined })
     });
     const data = await res.json();
+
+    if (handlePasscodeError(data)) {
+      status.textContent = 'Passcode error — please try again.';
+      btn.disabled = false;
+      btn.innerHTML = '<i class="fas fa-play"></i> Execute Research';
+      return;
+    }
 
     if (data.error) {
       status.textContent = 'Error: ' + data.error;
@@ -1307,6 +1324,11 @@ function closeReportDetailModal() {
 // ── Run Single Agent ──────────────────────────────────────
 async function runSingleAgent(agentType, symbol, btnEl) {
   const origHtml = btnEl.innerHTML;
+
+  // Passcode gate
+  var pHeaders = await withPasscode({ 'Content-Type': 'application/json' });
+  if (pHeaders === null) return;
+
   btnEl.disabled = true;
   btnEl.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
   btnEl.title = 'Running... (30-90s)';
@@ -1314,10 +1336,16 @@ async function runSingleAgent(agentType, symbol, btnEl) {
   try {
     const res = await fetch('/api/watchlist/run-agent', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: pHeaders,
       body: JSON.stringify({ agentType, symbol })
     });
     const data = await res.json();
+    if (handlePasscodeError(data)) {
+      alert('Passcode error — please try again.');
+      btnEl.disabled = false;
+      btnEl.innerHTML = origHtml;
+      return;
+    }
     if (data.error) {
       alert('Error: ' + data.error);
       btnEl.disabled = false;
@@ -1357,6 +1385,10 @@ async function bulkRunAgent(agentType) {
   const agentLabels = { episodic_pivot: 'Pivot', bias_mode: 'Bias', material_events: 'Material' };
   if (!confirm('Run ' + (agentLabels[agentType]||agentType) + ' agent on all ' + symbols.length + ' watchlist tickers?\\n\\nThis will take ~30-90 seconds per ticker.')) return;
 
+  // Passcode gate — prompt once for the entire bulk run
+  var pHeaders = await withPasscode({ 'Content-Type': 'application/json' });
+  if (pHeaders === null) return;
+
   _bulkRunning = true;
   const progressDiv = document.getElementById('bulk-run-progress');
   const labelEl = document.getElementById('bulk-run-label');
@@ -1383,10 +1415,15 @@ async function bulkRunAgent(agentType) {
     try {
       const res = await fetch('/api/watchlist/run-agent', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: pHeaders,
         body: JSON.stringify({ agentType, symbol: sym })
       });
       const data = await res.json();
+      if (handlePasscodeError(data)) {
+        // Passcode became invalid mid-run — abort
+        labelEl.textContent = 'Passcode error — run aborted.';
+        break;
+      }
       if (data.error) {
         failed++;
       } else {
@@ -2850,9 +2887,16 @@ let _slackConfig = {};
 
   // Update integration status based on slack config
   try {
-    const diagRes = await fetch('/api/diag/claude');
+    var diagHeaders = {};
+    var storedCode = getStoredPasscode();
+    if (storedCode) diagHeaders['X-Research-Passcode'] = storedCode;
+    const diagRes = await fetch('/api/diag/claude', { headers: diagHeaders });
     const diag = await diagRes.json();
-    updateIntegrationStatus('Claude API', diag.ok ? 'Connected' : 'Error', diag.ok ? 'green' : 'red');
+    if (diag.code === 'PASSCODE_REQUIRED' || diag.code === 'PASSCODE_INVALID') {
+      updateIntegrationStatus('Claude API', 'Passcode Required', 'amber');
+    } else {
+      updateIntegrationStatus('Claude API', diag.ok ? 'Connected' : 'Error', diag.ok ? 'green' : 'red');
+    }
   } catch(e) {}
   if (_slackConfig.botConfigured) {
     updateIntegrationStatus('Slack Bot', _slackConfig.channelId ? 'Connected' : 'Configured', _slackConfig.channelId ? 'green' : 'amber');
