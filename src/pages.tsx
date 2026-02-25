@@ -86,23 +86,49 @@ pageRoutes.get('/', (c) => {
             <div class="space-y-4">
               <div>
                 <label class="text-xs text-gray-400 uppercase tracking-wider block mb-1">Agent</label>
-                <select id="run-agent" class="w-full bg-ekantik-bg border border-ekantik-border rounded-lg px-3 py-2.5 text-sm text-gray-300 focus:outline-none focus:border-ekantik-gold/50">
-                  <option value="material_events">Material Events Intelligence</option>
-                  <option value="bias_mode">Bias Mode Detection</option>
-                  <option value="mag7_monitor">Magnificent 7 Scorecard</option>
-                  <option value="ai_scorer">AI Scoring Framework</option>
-                  <option value="hot_micro">Hot Micro Trend Pipeline</option>
-                  <option value="hot_macro">Hot Macro Events</option>
-                  <option value="doubler">Doubling Potential Analysis</option>
-                  <option value="social_sentiment">Social Sentiment Scanner</option>
-                  <option value="episodic_pivot">Episodic Pivot Scanner</option>
-                  <option value="disruption">Disruption & Superlative Detection</option>
-                  <option value="dislocation">Dislocation Detection</option>
+                <select id="run-agent" onchange="onAgentChange()" class="w-full bg-ekantik-bg border border-ekantik-border rounded-lg px-3 py-2.5 text-sm text-gray-300 focus:outline-none focus:border-ekantik-gold/50">
+                  <optgroup label="&#x1F3AF; Ticker-Specific (requires tickers)">
+                    <option value="material_events">Material Events Intelligence</option>
+                    <option value="bias_mode">Bias Mode Detection</option>
+                    <option value="ai_scorer">AI Scoring Framework</option>
+                    <option value="doubler">Doubling Potential Analysis</option>
+                    <option value="episodic_pivot">Episodic Pivot Scanner</option>
+                    <option value="disruption">Disruption &amp; Superlative Detection</option>
+                    <option value="dislocation">Dislocation Detection</option>
+                  </optgroup>
+                  <optgroup label="&#x1F30D; Market-Wide (no tickers needed)">
+                    <option value="mag7_monitor">Magnificent 7 Scorecard</option>
+                    <option value="hot_micro">Hot Micro Trend Pipeline</option>
+                    <option value="hot_macro">Hot Macro Events</option>
+                  </optgroup>
+                  <optgroup label="&#x1F504; Hybrid (tickers optional, uses watchlist)">
+                    <option value="social_sentiment">Social Sentiment Scanner</option>
+                    <option value="aomg_scanner">AOMG Growth Scanner</option>
+                  </optgroup>
                 </select>
+                <p id="agent-desc" class="text-[10px] text-gray-500 mt-1.5 leading-relaxed"></p>
               </div>
-              <div>
-                <label class="text-xs text-gray-400 uppercase tracking-wider block mb-1">Ticker(s) <span class="text-gray-500">(comma-separated, leave empty for Mag 7)</span></label>
-                <input id="run-tickers" type="text" placeholder="NVDA, MSFT" class="w-full bg-ekantik-bg border border-ekantik-border rounded-lg px-3 py-2.5 text-sm text-gray-300 focus:outline-none focus:border-ekantik-gold/50" />
+              <div id="ticker-section">
+                <div class="flex items-center justify-between mb-1">
+                  <label class="text-xs text-gray-400 uppercase tracking-wider">Ticker(s)</label>
+                  <button type="button" onclick="fillWatchlistTickers()" id="use-watchlist-btn" class="text-[10px] text-teal-400 hover:text-teal-300 font-semibold flex items-center gap-1"><i class="fas fa-list-ul"></i> Use Watchlist</button>
+                </div>
+                <input id="run-tickers" type="text" placeholder="NVDA, MSFT, AAPL" class="w-full bg-ekantik-bg border border-ekantik-border rounded-lg px-3 py-2.5 text-sm text-gray-300 focus:outline-none focus:border-ekantik-gold/50" />
+                <p id="ticker-hint" class="text-[10px] text-gray-500 mt-1"></p>
+              </div>
+              <div id="no-ticker-section" class="hidden">
+                <div class="bg-ekantik-surface border border-ekantik-border rounded-lg px-3 py-2.5 flex items-center gap-2">
+                  <i class="fas fa-globe text-ekantik-gold"></i>
+                  <span id="no-ticker-msg" class="text-sm text-gray-400">Scans market-wide — no tickers needed</span>
+                </div>
+              </div>
+              <div id="hybrid-ticker-section" class="hidden">
+                <div class="flex items-center justify-between mb-1">
+                  <label class="text-xs text-gray-400 uppercase tracking-wider">Ticker(s) <span class="text-gray-500">(optional)</span></label>
+                  <button type="button" onclick="fillWatchlistTickers()" class="text-[10px] text-teal-400 hover:text-teal-300 font-semibold flex items-center gap-1"><i class="fas fa-list-ul"></i> Use Watchlist</button>
+                </div>
+                <input id="run-tickers-hybrid" type="text" placeholder="Leave empty to scan broadly, or enter NVDA, MSFT..." class="w-full bg-ekantik-bg border border-ekantik-border rounded-lg px-3 py-2.5 text-sm text-gray-300 focus:outline-none focus:border-ekantik-gold/50" />
+                <p id="hybrid-ticker-hint" class="text-[10px] text-gray-500 mt-1">Optional — provide tickers to focus the scan, or leave empty for market-wide analysis.</p>
               </div>
               <div>
                 <label class="text-xs text-gray-400 uppercase tracking-wider block mb-1">Additional Context <span class="text-gray-500">(optional)</span></label>
@@ -1030,19 +1056,109 @@ function escapeHtml(text) {
   return text.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 }
 
+// ── Agent configuration for Run Research modal ──────────
+// mode: 'ticker' = requires tickers, 'market' = no tickers, 'hybrid' = tickers optional
+const AGENT_CONFIG = {
+  material_events: { mode: 'ticker',  desc: 'Detects material events affecting specific stocks — earnings surprises, M&A, FDA, legal.' },
+  bias_mode:       { mode: 'ticker',  desc: 'Triple-test bias detection on a specific ticker — genuine vs. misleading signals.' },
+  ai_scorer:       { mode: 'ticker',  desc: 'Six-dimension AI scoring framework for individual stock analysis.' },
+  doubler:         { mode: 'ticker',  desc: 'Screens specific tickers for 2x potential over 12-24 months.' },
+  episodic_pivot:  { mode: 'ticker',  desc: 'Detects episodic pivot events that fundamentally change a stock\\'s trajectory.' },
+  disruption:      { mode: 'ticker',  desc: 'Identifies disruptive or superlative products that create competitive moats.' },
+  dislocation:     { mode: 'ticker',  desc: 'Flags 15-50%+ price drops from temporary catalysts — potential buying opportunities.' },
+  mag7_monitor:    { mode: 'market',  desc: 'Scorecard analysis across all Magnificent 7 stocks (AAPL, MSFT, GOOG, AMZN, NVDA, META, TSLA).' },
+  hot_micro:       { mode: 'market',  desc: 'Scans market-wide for trending micro-cap themes and momentum shifts.' },
+  hot_macro:       { mode: 'market',  desc: 'Scans global macro events — Fed, geopolitics, trade policy, sector rotations.' },
+  social_sentiment:{ mode: 'hybrid',  desc: 'Scans social media, Reddit, X for sentiment shifts. Optionally focus on specific tickers or your watchlist.' },
+  aomg_scanner:    { mode: 'hybrid',  desc: 'AOMG Growth Scanner — optionally narrow to specific tickers, or scan broadly across market themes.' },
+};
+
+function onAgentChange() {
+  var agent = document.getElementById('run-agent').value;
+  var cfg = AGENT_CONFIG[agent] || { mode: 'ticker', desc: '' };
+
+  // Update description
+  document.getElementById('agent-desc').textContent = cfg.desc;
+
+  // Toggle sections based on agent mode
+  var tickerSec = document.getElementById('ticker-section');
+  var noTickerSec = document.getElementById('no-ticker-section');
+  var hybridSec = document.getElementById('hybrid-ticker-section');
+  var tickerHint = document.getElementById('ticker-hint');
+
+  tickerSec.classList.add('hidden');
+  noTickerSec.classList.add('hidden');
+  hybridSec.classList.add('hidden');
+
+  if (cfg.mode === 'ticker') {
+    tickerSec.classList.remove('hidden');
+    tickerHint.textContent = 'Required — comma-separated. Click "Use Watchlist" to auto-fill.';
+  } else if (cfg.mode === 'market') {
+    noTickerSec.classList.remove('hidden');
+  } else if (cfg.mode === 'hybrid') {
+    hybridSec.classList.remove('hidden');
+  }
+}
+
+// Auto-fill tickers from watchlist (works for both ticker-required and hybrid inputs)
+async function fillWatchlistTickers() {
+  // Find whichever "Use Watchlist" button was clicked
+  var btn = document.getElementById('use-watchlist-btn');
+  if (btn) btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Loading...';
+  try {
+    var res = await fetch('/api/watchlist');
+    var data = await res.json();
+    var symbols = (data.tickers || []).map(function(t) { return t.symbol; });
+    if (symbols.length === 0) {
+      alert('Your watchlist is empty. Add tickers to the Watchlist page first.');
+    } else {
+      // Fill whichever ticker input is visible
+      var tickerInput = document.getElementById('run-tickers');
+      var hybridInput = document.getElementById('run-tickers-hybrid');
+      var tickerHint = document.getElementById('ticker-hint');
+      var hybridHint = document.getElementById('hybrid-ticker-hint');
+      if (tickerInput && !tickerInput.closest('.hidden')) {
+        tickerInput.value = symbols.join(', ');
+        if (tickerHint) tickerHint.innerHTML = '<span class="text-teal-400">' + symbols.length + ' tickers loaded from watchlist</span>';
+      }
+      if (hybridInput && !hybridInput.closest('.hidden')) {
+        hybridInput.value = symbols.join(', ');
+        if (hybridHint) hybridHint.innerHTML = '<span class="text-teal-400">' + symbols.length + ' tickers loaded from watchlist</span>';
+      }
+    }
+  } catch(e) {
+    alert('Failed to load watchlist: ' + e.message);
+  }
+  if (btn) btn.innerHTML = '<i class="fas fa-list-ul"></i> Use Watchlist';
+}
+
+// Initialize on page load
+(function() { onAgentChange(); })();
+
 async function runResearch() {
   const agent = document.getElementById('run-agent').value;
-  const tickersStr = document.getElementById('run-tickers').value;
   const context = document.getElementById('run-context').value;
   const btn = document.getElementById('run-btn');
   const status = document.getElementById('run-status');
-
-  const tickers = tickersStr.toUpperCase().split(/[\\s,]+/).filter(t => /^[A-Z]{1,5}$/.test(t));
+  const cfg = AGENT_CONFIG[agent] || { mode: 'ticker' };
 
   if (!agent) { alert('Please select an agent'); return; }
-  if (['material_events','bias_mode','ai_scorer','doubler','disruption','dislocation'].includes(agent) && tickers.length === 0) {
-    alert('This agent requires at least one ticker symbol'); return;
+
+  // Collect tickers based on agent mode
+  var tickers = [];
+  if (cfg.mode === 'ticker') {
+    var tickersStr = document.getElementById('run-tickers').value;
+    tickers = tickersStr.toUpperCase().split(/[\\s,]+/).filter(t => /^[A-Z]{1,5}$/.test(t));
+    if (tickers.length === 0) {
+      alert('This agent requires at least one ticker symbol. Enter tickers or click "Use Watchlist".');
+      return;
+    }
+  } else if (cfg.mode === 'hybrid') {
+    var hybridStr = (document.getElementById('run-tickers-hybrid').value || '');
+    tickers = hybridStr.toUpperCase().split(/[\\s,]+/).filter(t => /^[A-Z]{1,5}$/.test(t));
+    // Hybrid agents accept empty tickers — they run market-wide if no tickers given
   }
+  // mode === 'market' — no tickers, that's fine
 
   btn.disabled = true;
   btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Researching...';
@@ -1056,7 +1172,11 @@ async function runResearch() {
     return;
   }
 
-  status.textContent = 'Claude is analyzing with web search — typically 30-90 seconds...';
+  status.textContent = cfg.mode === 'market'
+    ? 'Claude is running market-wide scan — typically 30-90 seconds...'
+    : tickers.length > 0
+      ? 'Claude is analyzing ' + tickers.length + ' ticker(s) — typically 30-90 seconds...'
+      : 'Claude is scanning broadly — typically 30-90 seconds...';
 
   try {
     const res = await fetch('/api/research/run', {

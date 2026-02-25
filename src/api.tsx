@@ -108,6 +108,12 @@ apiRoutes.post('/research/slack-run', async (c) => {
 // ============================================================
 // RESEARCH ENGINE — Run Research from Portal
 // ============================================================
+// Agent mode classification for validation
+const TICKER_AGENTS = ['material_events', 'bias_mode', 'ai_scorer', 'doubler', 'episodic_pivot', 'disruption', 'dislocation']
+const MARKET_AGENTS = ['mag7_monitor', 'hot_micro', 'hot_macro']
+const HYBRID_AGENTS = ['social_sentiment', 'aomg_scanner']
+const ALL_AGENTS = [...TICKER_AGENTS, ...MARKET_AGENTS, ...HYBRID_AGENTS]
+
 apiRoutes.post('/research/run', async (c) => {
   const body = await c.req.json()
   const { agentType, tickers, additionalContext } = body
@@ -116,16 +122,30 @@ apiRoutes.post('/research/run', async (c) => {
     return c.json({ error: 'agentType is required' }, 400)
   }
 
+  if (!ALL_AGENTS.includes(agentType)) {
+    return c.json({ error: `Unknown agentType: ${agentType}. Valid agents: ${ALL_AGENTS.join(', ')}` }, 400)
+  }
+
+  // Validate ticker requirements per agent mode
+  const tickerList = Array.isArray(tickers) ? tickers.filter((t: string) => t && t.trim()) : []
+  if (TICKER_AGENTS.includes(agentType) && tickerList.length === 0) {
+    return c.json({ error: `Agent '${agentType}' requires at least one ticker symbol.` }, 400)
+  }
+  // MARKET_AGENTS: ignore any tickers passed (run market-wide)
+  // HYBRID_AGENTS: tickers are optional — passed through if provided
+
   if (!c.env.ANTHROPIC_API_KEY) {
     return c.json({ error: 'ANTHROPIC_API_KEY not configured' }, 500)
   }
 
   try {
+    // Market-wide agents don't need tickers; hybrid agents pass through whatever user provided
+    const effectiveTickers = MARKET_AGENTS.includes(agentType) ? [] : tickerList
     const reportId = await processPortalResearch(
       c.env.ANTHROPIC_API_KEY,
       c.env.DB,
       agentType,
-      tickers || [],
+      effectiveTickers,
       additionalContext,
     )
 
@@ -505,13 +525,14 @@ apiRoutes.post('/watchlist/bulk-import', async (c) => {
 
 // ── Bulk-run a research agent across a single watchlist ticker ──
 // Client-side will call this per-ticker sequentially to show progress
+// Accepts all ticker-specific agents + hybrid agents (which can run per-ticker)
 apiRoutes.post('/watchlist/run-agent', async (c) => {
   const body = await c.req.json()
   const { agentType, symbol } = body
 
-  const validAgents = ['episodic_pivot', 'bias_mode', 'material_events']
-  if (!agentType || !validAgents.includes(agentType)) {
-    return c.json({ error: `agentType must be one of: ${validAgents.join(', ')}` }, 400)
+  const validWatchlistAgents = [...TICKER_AGENTS, ...HYBRID_AGENTS]
+  if (!agentType || !validWatchlistAgents.includes(agentType)) {
+    return c.json({ error: `agentType must be one of: ${validWatchlistAgents.join(', ')}` }, 400)
   }
   if (!symbol) return c.json({ error: 'symbol is required' }, 400)
 
