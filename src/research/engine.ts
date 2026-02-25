@@ -226,6 +226,9 @@ export async function persistReport(
     if (agentType === 'social_sentiment' && structured.high_conviction_signals) {
       await persistSocialSentiment(db, reportId, structured)
     }
+    if (agentType === 'aomg_scanner' && structured.themes) {
+      await persistAomgThemes(db, reportId, structured.themes)
+    }
   } catch (e) {
     console.error('Error persisting agent-specific data:', e)
   }
@@ -386,6 +389,59 @@ async function persistSocialSentiment(db: D1Database, reportId: string, structur
       ).run()
     } catch (e) {
       console.error('Error persisting social sentiment observation:', e)
+    }
+  }
+}
+
+// ── Helper: Persist AOMG Themes ───────────────────────────
+async function persistAomgThemes(db: D1Database, reportId: string, themes: any[]) {
+  const now = new Date()
+  const quarter = `Q${Math.ceil((now.getMonth() + 1) / 3)}`
+  const year = now.getFullYear()
+
+  for (const theme of themes.slice(0, 20)) {
+    try {
+      const themeId = `aomg-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`
+      await db.prepare(`
+        INSERT INTO aomg_themes (
+          id, name, description, quarter, year,
+          tam_estimate, sam_estimate, som_estimate,
+          status, ai_score_composite,
+          sentiment_drivers, sentiment_constraints,
+          key_catalysts
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `).bind(
+        themeId,
+        (theme.name || 'Unnamed Theme').substring(0, 200),
+        (theme.description || '').substring(0, 1000),
+        quarter,
+        year,
+        theme.tam_estimate || null,
+        theme.sam_estimate || null,
+        theme.som_estimate || null,
+        theme.status || 'active',
+        theme.ai_score || null,
+        JSON.stringify(theme.drivers || []),
+        JSON.stringify(theme.constraints || []),
+        JSON.stringify(theme.catalysts || [])
+      ).run()
+
+      // Link beneficiary tickers if provided
+      if (theme.beneficiary_tickers && Array.isArray(theme.beneficiary_tickers)) {
+        for (const symbol of theme.beneficiary_tickers.slice(0, 10)) {
+          const ticker = await db.prepare('SELECT id FROM tickers WHERE symbol = ?').bind(symbol).first()
+          if (ticker) {
+            try {
+              await db.prepare(`
+                INSERT OR IGNORE INTO aomg_theme_tickers (aomg_id, ticker_id)
+                VALUES (?, ?)
+              `).bind(themeId, (ticker as any).id).run()
+            } catch (_) { /* ignore if junction table doesn't exist */ }
+          }
+        }
+      }
+    } catch (e) {
+      console.error('Error persisting AOMG theme:', e)
     }
   }
 }

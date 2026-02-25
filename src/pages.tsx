@@ -547,6 +547,65 @@ pageRoutes.get('/observations', (c) => {
             <h1 class="text-2xl font-bold text-white">Observation <span class="text-ekantik-gold italic">Log</span></h1>
             <p class="text-gray-400 text-sm mt-1">This Happened → Why It Matters → Watch Next</p>
           </div>
+          <button onclick="openObsFilesModal()" class="px-4 py-2 bg-ekantik-surface border border-ekantik-border text-gray-300 rounded-lg text-sm font-semibold hover:border-teal-500/50 hover:text-teal-400 transition-colors flex items-center gap-2">
+            <i class="fas fa-paperclip"></i> Reports &amp; Files <span id="obs-files-badge" class="hidden px-1.5 py-0.5 bg-teal-500/20 text-teal-400 rounded text-[10px] font-bold ml-1">0</span>
+          </button>
+        </div>
+        {/* Files Modal */}
+        <div id="obs-files-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" onclick="if(event.target===this)closeObsFilesModal()">
+          <div class="bg-ekantik-card border border-ekantik-border rounded-2xl w-full max-w-2xl mx-4 max-h-[85vh] flex flex-col shadow-2xl">
+            <div class="flex items-center justify-between p-5 border-b border-ekantik-border">
+              <h3 class="text-lg font-bold text-white"><i class="fas fa-paperclip mr-2 text-teal-400"></i>Observation Reports &amp; Files</h3>
+              <button onclick="closeObsFilesModal()" class="text-gray-400 hover:text-white"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="p-5 space-y-4 overflow-y-auto flex-1">
+              {/* Upload Zone */}
+              <div id="obs-file-upload-zone" class="border-2 border-dashed border-ekantik-border rounded-xl p-5 text-center hover:border-teal-500/50 transition-colors cursor-pointer" onclick="document.getElementById('obs-file-input').click()">
+                <i class="fas fa-cloud-upload-alt text-2xl text-gray-500 mb-2"></i>
+                <p class="text-sm text-gray-400">Click to upload or drag &amp; drop</p>
+                <p class="text-[10px] text-gray-500 mt-1">md, txt, csv, pdf, doc, docx, xls, xlsx — max 5MB</p>
+                <input type="file" id="obs-file-input" accept=".md,.txt,.csv,.pdf,.doc,.docx,.xls,.xlsx" class="hidden" onchange="handleObsFileSelect(this)" />
+              </div>
+              <div id="obs-file-upload-form" class="hidden space-y-3">
+                <div class="bg-ekantik-surface rounded-lg p-3 flex items-center gap-3">
+                  <i class="fas fa-file text-teal-400"></i>
+                  <div class="flex-1 min-w-0">
+                    <p id="obs-file-selected-name" class="text-sm text-white truncate"></p>
+                    <p id="obs-file-selected-size" class="text-[10px] text-gray-500"></p>
+                  </div>
+                  <button onclick="cancelObsFileSelect()" class="text-gray-400 hover:text-red-400"><i class="fas fa-times"></i></button>
+                </div>
+                <div class="flex gap-3">
+                  <input id="obs-file-notes" type="text" placeholder="Notes (optional)" class="flex-1 bg-ekantik-bg border border-ekantik-border rounded-lg px-3 py-2 text-sm text-gray-300" />
+                  <select id="obs-file-link" class="bg-ekantik-bg border border-ekantik-border rounded-lg px-3 py-2 text-sm text-gray-300">
+                    <option value="">General (no specific observation)</option>
+                  </select>
+                </div>
+                <div class="flex justify-end gap-2">
+                  <button onclick="cancelObsFileSelect()" class="px-3 py-1.5 text-sm text-gray-400 hover:text-white">Cancel</button>
+                  <button onclick="uploadObsFile()" id="obs-file-upload-btn" class="px-4 py-1.5 bg-teal-500 text-white rounded-lg text-sm font-semibold hover:bg-teal-400"><i class="fas fa-upload mr-1"></i>Upload</button>
+                </div>
+                <div id="obs-file-upload-progress" class="hidden h-1.5 bg-ekantik-bg rounded-full overflow-hidden">
+                  <div id="obs-file-upload-bar" class="h-full bg-teal-500 rounded-full transition-all" style="width:0%"></div>
+                </div>
+                <p id="obs-file-upload-status" class="text-[10px] text-gray-500"></p>
+              </div>
+              {/* Files List */}
+              <div id="obs-files-list" class="space-y-2">
+                <div class="text-center py-4 text-gray-500 text-sm"><i class="fas fa-spinner fa-spin mr-2"></i>Loading files...</div>
+              </div>
+            </div>
+          </div>
+        </div>
+        {/* File Preview Modal */}
+        <div id="obs-file-preview-modal" class="hidden fixed inset-0 z-[60] flex items-center justify-center bg-black/70 backdrop-blur-sm" onclick="if(event.target===this)closeObsFilePreview()">
+          <div class="bg-ekantik-card border border-ekantik-border rounded-2xl w-full max-w-3xl mx-4 max-h-[85vh] flex flex-col shadow-2xl">
+            <div class="flex items-center justify-between p-4 border-b border-ekantik-border">
+              <h4 id="obs-preview-title" class="text-sm font-bold text-white truncate"></h4>
+              <button onclick="closeObsFilePreview()" class="text-gray-400 hover:text-white"><i class="fas fa-times"></i></button>
+            </div>
+            <div id="obs-preview-body" class="p-5 overflow-y-auto flex-1 text-sm text-gray-300 font-mono whitespace-pre-wrap"></div>
+          </div>
         </div>
         <div id="observations-container">
           <div class="text-center py-12 text-gray-500">
@@ -2371,6 +2430,10 @@ const heatScript = `
 `
 
 const observationsScript = `
+let _obsFiles = [];
+let _obsSelectedFile = null;
+let _obsObservations = [];
+
 const pivotTypeOptions = [
   { value: '', label: 'Not a Pivot' },
   { value: 'earnings_surprise', label: 'Earnings Surprise' },
@@ -2406,6 +2469,7 @@ const pivotTypeLabels = {
   try {
     const res = await fetch('/api/observations');
     const { observations } = await res.json();
+    _obsObservations = observations || [];
     const container = document.getElementById('observations-container');
 
     container.innerHTML =
@@ -2550,6 +2614,203 @@ async function submitObservation() {
     location.reload();
   } catch(e) { alert('Error saving observation'); }
 }
+
+// ── Observation Files Management ─────────────────────────
+
+async function loadObsFiles() {
+  try {
+    const res = await fetch('/api/observations/files');
+    const data = await res.json();
+    _obsFiles = data.files || [];
+    updateObsFilesBadge();
+    renderObsFilesList();
+    populateObsLinkDropdown();
+  } catch(e) { console.error('Failed to load observation files', e); }
+}
+
+function updateObsFilesBadge() {
+  var badge = document.getElementById('obs-files-badge');
+  if (badge) {
+    if (_obsFiles.length > 0) {
+      badge.textContent = _obsFiles.length;
+      badge.classList.remove('hidden');
+    } else {
+      badge.classList.add('hidden');
+    }
+  }
+}
+
+function populateObsLinkDropdown() {
+  var sel = document.getElementById('obs-file-link');
+  if (!sel) return;
+  var html = '<option value="">General (no specific observation)</option>';
+  _obsObservations.forEach(function(obs) {
+    var label = (obs.happened_text || '').substring(0, 60);
+    var tickers = obs.ticker_symbols ? JSON.parse(obs.ticker_symbols) : [];
+    var prefix = tickers.length > 0 ? '[' + tickers.join(',') + '] ' : '';
+    html += '<option value="' + obs.id + '">' + prefix + label + (label.length >= 60 ? '...' : '') + '</option>';
+  });
+  sel.innerHTML = html;
+}
+
+function renderObsFilesList() {
+  var container = document.getElementById('obs-files-list');
+  if (!container) return;
+  if (_obsFiles.length === 0) {
+    container.innerHTML = '<div class="text-center py-6 text-gray-500 text-sm">No files uploaded yet. Upload research reports, analysis notes, or any supporting documents.</div>';
+    return;
+  }
+  container.innerHTML = _obsFiles.map(function(f) {
+    var isText = ['text/markdown','text/plain','text/csv','application/octet-stream'].includes(f.file_type) || /\\.(md|txt|csv)$/i.test(f.file_name);
+    var sizeStr = f.file_size < 1024 ? f.file_size + ' B' : f.file_size < 1048576 ? (f.file_size/1024).toFixed(1) + ' KB' : (f.file_size/1048576).toFixed(1) + ' MB';
+    var icon = /\\.pdf$/i.test(f.file_name) ? 'fa-file-pdf text-red-400' : /\\.(doc|docx)$/i.test(f.file_name) ? 'fa-file-word text-blue-400' : /\\.(xls|xlsx)$/i.test(f.file_name) ? 'fa-file-excel text-green-400' : /\\.csv$/i.test(f.file_name) ? 'fa-file-csv text-green-400' : 'fa-file-alt text-teal-400';
+    var linkedLabel = '';
+    if (f.observation_id) {
+      var obs = _obsObservations.find(function(o) { return o.id === f.observation_id; });
+      if (obs) {
+        var tks = obs.ticker_symbols ? JSON.parse(obs.ticker_symbols) : [];
+        linkedLabel = '<span class="text-[10px] text-amber-400"><i class="fas fa-link mr-1"></i>Linked to: ' + (tks.length > 0 ? tks.join(',') + ' — ' : '') + (obs.happened_text||'').substring(0,40) + '</span>';
+      }
+    }
+    return '<div class="bg-ekantik-surface rounded-lg p-3 flex items-center gap-3">' +
+      '<i class="fas ' + icon + ' text-lg"></i>' +
+      '<div class="flex-1 min-w-0">' +
+        '<p class="text-sm text-white truncate">' + f.file_name + '</p>' +
+        '<div class="flex items-center gap-2 flex-wrap">' +
+          '<span class="text-[10px] text-gray-500">' + sizeStr + '</span>' +
+          (f.notes ? '<span class="text-[10px] text-gray-400">— ' + f.notes + '</span>' : '') +
+          linkedLabel +
+          '<span class="text-[10px] text-gray-600">' + (f.created_at || '') + '</span>' +
+        '</div>' +
+      '</div>' +
+      '<div class="flex items-center gap-1">' +
+        (isText ? '<button onclick="previewObsFile(' + f.id + ')" class="p-1.5 text-gray-400 hover:text-teal-400" title="Preview"><i class="fas fa-eye"></i></button>' : '') +
+        '<a href="/api/observations/files/' + f.id + '/download" class="p-1.5 text-gray-400 hover:text-blue-400" title="Download"><i class="fas fa-download"></i></a>' +
+        '<button onclick="deleteObsFile(' + f.id + ')" class="p-1.5 text-gray-400 hover:text-red-400" title="Delete"><i class="fas fa-trash-alt"></i></button>' +
+      '</div>' +
+    '</div>';
+  }).join('');
+}
+
+function openObsFilesModal() {
+  document.getElementById('obs-files-modal').classList.remove('hidden');
+  document.getElementById('obs-files-modal').style.display = 'flex';
+  loadObsFiles();
+}
+
+function closeObsFilesModal() {
+  document.getElementById('obs-files-modal').classList.add('hidden');
+  document.getElementById('obs-files-modal').style.display = '';
+}
+
+function handleObsFileSelect(input) {
+  if (!input.files || !input.files[0]) return;
+  _obsSelectedFile = input.files[0];
+  document.getElementById('obs-file-selected-name').textContent = _obsSelectedFile.name;
+  document.getElementById('obs-file-selected-size').textContent = (_obsSelectedFile.size < 1024 ? _obsSelectedFile.size + ' B' : (_obsSelectedFile.size / 1024).toFixed(1) + ' KB');
+  document.getElementById('obs-file-upload-zone').classList.add('hidden');
+  document.getElementById('obs-file-upload-form').classList.remove('hidden');
+}
+
+function cancelObsFileSelect() {
+  _obsSelectedFile = null;
+  document.getElementById('obs-file-input').value = '';
+  document.getElementById('obs-file-upload-zone').classList.remove('hidden');
+  document.getElementById('obs-file-upload-form').classList.add('hidden');
+  document.getElementById('obs-file-upload-status').textContent = '';
+}
+
+async function uploadObsFile() {
+  if (!_obsSelectedFile) return;
+  var btn = document.getElementById('obs-file-upload-btn');
+  var statusEl = document.getElementById('obs-file-upload-status');
+  var progressBar = document.getElementById('obs-file-upload-bar');
+  var progressDiv = document.getElementById('obs-file-upload-progress');
+  btn.disabled = true;
+  btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i> Uploading...';
+  progressDiv.classList.remove('hidden');
+  progressBar.style.width = '30%';
+  statusEl.textContent = 'Uploading...';
+
+  try {
+    var formData = new FormData();
+    formData.append('file', _obsSelectedFile);
+    var notes = document.getElementById('obs-file-notes').value;
+    if (notes) formData.append('notes', notes);
+    var obsId = document.getElementById('obs-file-link').value;
+    if (obsId) formData.append('observation_id', obsId);
+
+    progressBar.style.width = '60%';
+    var res = await fetch('/api/observations/files', { method: 'POST', body: formData });
+    var data = await res.json();
+    progressBar.style.width = '100%';
+
+    if (data.error) {
+      statusEl.textContent = 'Error: ' + data.error;
+      btn.disabled = false;
+      btn.innerHTML = '<i class="fas fa-upload mr-1"></i> Retry';
+      return;
+    }
+
+    statusEl.textContent = 'Uploaded successfully!';
+    setTimeout(function() {
+      cancelObsFileSelect();
+      loadObsFiles();
+    }, 800);
+  } catch(e) {
+    statusEl.textContent = 'Error: ' + e.message;
+    btn.disabled = false;
+    btn.innerHTML = '<i class="fas fa-upload mr-1"></i> Retry';
+    progressBar.style.width = '100%';
+  }
+}
+
+async function deleteObsFile(fileId) {
+  if (!confirm('Delete this file?')) return;
+  try {
+    await fetch('/api/observations/files/' + fileId, { method: 'DELETE' });
+    loadObsFiles();
+  } catch(e) { alert('Error deleting file'); }
+}
+
+async function previewObsFile(fileId) {
+  try {
+    var res = await fetch('/api/observations/files/' + fileId + '/preview');
+    var data = await res.json();
+    if (data.error) { alert(data.error); return; }
+    document.getElementById('obs-preview-title').textContent = data.file_name;
+    var body = document.getElementById('obs-preview-body');
+    var text = data.preview || '';
+    // Simple markdown-to-HTML
+    text = text.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    text = text.replace(new RegExp('^### (.+)$', 'gm'), '<h3 class="text-white font-bold text-sm mt-4 mb-1">$1</h3>');
+    text = text.replace(new RegExp('^## (.+)$', 'gm'), '<h2 class="text-white font-bold text-base mt-5 mb-2">$1</h2>');
+    text = text.replace(new RegExp('^# (.+)$', 'gm'), '<h1 class="text-white font-bold text-lg mt-5 mb-2">$1</h1>');
+    text = text.replace(new RegExp('\\\\*\\\\*(.+?)\\\\*\\\\*', 'g'), '<strong class="text-white">$1</strong>');
+    text = text.replace(new RegExp('^- (.+)$', 'gm'), '<li class="text-gray-300 text-sm ml-4">$1</li>');
+    text = text.replace(new RegExp('^(\\\\d+)\\\\. (.+)$', 'gm'), '<li class="text-gray-300 text-sm ml-4">$1. $2</li>');
+    text = text.replace(new RegExp('\\\\n{2,}', 'g'), '<br/><br/>');
+    text = text.replace(new RegExp('\\\\n', 'g'), '<br/>');
+    body.innerHTML = '<div class="prose prose-invert max-w-none">' + text + '</div>';
+    document.getElementById('obs-file-preview-modal').classList.remove('hidden');
+    document.getElementById('obs-file-preview-modal').style.display = 'flex';
+  } catch(e) { alert('Failed to load preview'); }
+}
+
+function closeObsFilePreview() {
+  document.getElementById('obs-file-preview-modal').classList.add('hidden');
+  document.getElementById('obs-file-preview-modal').style.display = '';
+}
+
+// Load file count on page load
+(async function() {
+  try {
+    var res = await fetch('/api/observations/files');
+    var data = await res.json();
+    _obsFiles = data.files || [];
+    updateObsFilesBadge();
+  } catch(e) {}
+})();
 `
 
 const journalScript = `
