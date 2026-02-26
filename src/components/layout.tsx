@@ -1,7 +1,8 @@
 import type { FC } from 'hono/jsx'
 
 const navItems = [
-  { path: '/', icon: 'fas fa-satellite-dish', label: 'Intelligence Feed', id: 'dashboard' },
+  { path: '/', icon: 'fas fa-home', label: 'Home', id: 'home' },
+  { path: '/feed', icon: 'fas fa-satellite-dish', label: 'Intelligence Feed', id: 'dashboard' },
   { path: '/watchlist', icon: 'fas fa-binoculars', label: 'Watchlist', id: 'watchlist' },
   { path: '/mag7', icon: 'fas fa-crown', label: 'Magnificent 7', id: 'mag7' },
   { path: '/aomg', icon: 'fas fa-bullseye', label: 'AOMG Tracker', id: 'aomg' },
