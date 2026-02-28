@@ -8,6 +8,11 @@ export const renderer = jsxRenderer(({ children, title }) => {
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
         <title>{title || 'Ekantik Capital Advisors — Research Portal'}</title>
         <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+        <link rel="manifest" href="/manifest.json" />
+        <meta name="theme-color" content="#0a0f1e" />
+        <meta name="apple-mobile-web-app-capable" content="yes" />
+        <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+        <meta name="apple-mobile-web-app-title" content="Ekantik Intelligence" />
         <script src="https://cdn.tailwindcss.com"></script>
         <link href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css" rel="stylesheet" />
         <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
@@ -132,7 +137,14 @@ export const renderer = jsxRenderer(({ children, title }) => {
           .glass-card { background: rgba(26,35,50,0.7); backdrop-filter: blur(10px); }
         `}} />
       </head>
-      <body class="font-inter antialiased">{children}</body>
+      <body class="font-inter antialiased">
+        {children}
+        <script dangerouslySetInnerHTML={{ __html: `
+          if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('/sw.js').catch(function() {});
+          }
+        `}} />
+      </body>
     </html>
   )
 })

@@ -49,11 +49,27 @@ export const Layout: FC<{ active: string; children: any }> = ({ active, children
           ))}
 
           <div class="px-3 mt-6 mb-2">
+            <span class="text-[10px] font-semibold text-gray-500 uppercase tracking-widest px-3">Publish</span>
+          </div>
+          <a href="/admin/upload" class={`sidebar-link flex items-center gap-3 px-6 py-2.5 text-sm border-l-3 border-transparent ${active === 'upload' ? 'bg-ekantik-gold/10 text-ekantik-gold border-l-[3px] border-ekantik-gold' : 'text-gray-400 hover:text-ekantik-gold'}`}>
+            <i class="fas fa-cloud-upload-alt w-4 text-center text-xs"></i>
+            <span>Upload Content</span>
+          </a>
+          <a href="/admin/queue" class={`sidebar-link flex items-center gap-3 px-6 py-2.5 text-sm border-l-3 border-transparent ${active === 'queue' ? 'bg-ekantik-gold/10 text-ekantik-gold border-l-[3px] border-ekantik-gold' : 'text-gray-400 hover:text-ekantik-gold'}`}>
+            <i class="fas fa-tasks w-4 text-center text-xs"></i>
+            <span>Review Queue</span>
+          </a>
+
+          <div class="px-3 mt-6 mb-2">
             <span class="text-[10px] font-semibold text-gray-500 uppercase tracking-widest px-3">System</span>
           </div>
-          <a href="/settings" class="sidebar-link flex items-center gap-3 px-6 py-2.5 text-sm text-gray-400 hover:text-ekantik-gold border-l-3 border-transparent">
+          <a href="/settings" class={`sidebar-link flex items-center gap-3 px-6 py-2.5 text-sm border-l-3 border-transparent ${active === 'settings' ? 'bg-ekantik-gold/10 text-ekantik-gold border-l-[3px] border-ekantik-gold' : 'text-gray-400 hover:text-ekantik-gold'}`}>
             <i class="fas fa-cog w-4 text-center text-xs"></i>
             <span>Settings</span>
+          </a>
+          <a href="/admin/subscribers" class={`sidebar-link flex items-center gap-3 px-6 py-2.5 text-sm border-l-3 border-transparent ${active === 'subscribers' ? 'bg-ekantik-gold/10 text-ekantik-gold border-l-[3px] border-ekantik-gold' : 'text-gray-400 hover:text-ekantik-gold'}`}>
+            <i class="fas fa-users w-4 text-center text-xs"></i>
+            <span>Subscribers</span>
           </a>
         </nav>
 
