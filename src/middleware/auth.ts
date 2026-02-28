@@ -71,9 +71,15 @@ async function getSessionUser(c: Context<{ Bindings: Bindings }>): Promise<AuthU
   try {
     const { sub } = JSON.parse(payload)
     const db = c.env.DB
-    const row = await db.prepare(
-      'SELECT id, email, display_name, role, plan, trial_end FROM subscribers WHERE id = ?'
-    ).bind(sub).first<any>()
+    let row: any = null
+    try {
+      row = await db.prepare(
+        'SELECT id, email, display_name, role, plan, trial_end FROM subscribers WHERE id = ?'
+      ).bind(sub).first<any>()
+    } catch {
+      // subscribers table may not exist yet (migration not applied)
+      return null
+    }
     if (!row) return null
 
     let trialDaysRemaining: number | null = null

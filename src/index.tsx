@@ -27,14 +27,18 @@ const app = new Hono<{ Bindings: Bindings }>()
 app.use(renderer)
 app.use('/api/*', cors())
 
-// Apply optional auth to all page routes (attaches user if session cookie present)
-app.use('/*', optionalAuth)
-
 // Slack routes (must be before generic API routes)
 app.route('/api/slack', slackRoutes)
 
 // API routes (includes admin, subscriber, auth, billing, push APIs)
 app.route('/api', apiRoutes)
+
+// Apply optional auth only to page routes (not API routes)
+app.use('*', async (c, next) => {
+  // Skip if already handled (API routes)
+  if (c.req.path.startsWith('/api/')) return next()
+  return optionalAuth(c, next)
+})
 
 // Public pages (login, register, verify, onboarding) — no auth required
 app.route('/', publicPageRoutes)
@@ -44,13 +48,5 @@ app.route('/', subscriberPageRoutes)
 
 // Admin pages (home, feed, watchlist, mag7, aomg, heat, observations, journal, settings, upload, queue, subscribers)
 app.route('/', adminPageRoutes)
-
-// Root redirect: unauthenticated → /login, subscriber → /feed, admin → / (home)
-app.get('/', async (c) => {
-  const user = (c as any).get?.('user')
-  if (!user) return c.redirect('/login')
-  if (user.role === 'subscriber' || user.role === 'trial') return c.redirect('/feed')
-  return c.redirect('/feed') // admin also goes to feed as default
-})
 
 export default app

@@ -368,7 +368,7 @@ homeRoutes.get('/', (c) => {
                 data: points,
                 borderColor: function(context) {
                   const i = context.dataIndex || 0;
-                  const x = i / ${N};
+                  const x = i / 200;
                   if (x <= 0.25) return '#6b7280';
                   if (x <= 0.50) return '#3b82f6';
                   if (x <= 0.65) return '#f59e0b';
@@ -378,7 +378,7 @@ homeRoutes.get('/', (c) => {
                 segment: {
                   borderColor: function(ctx) {
                     const i = ctx.p0DataIndex;
-                    const x = i / ${N};
+                    const x = i / 200;
                     if (x <= 0.25) return '#6b7280';
                     if (x <= 0.50) return '#3b82f6';
                     if (x <= 0.65) return '#f59e0b';
@@ -419,7 +419,7 @@ homeRoutes.get('/', (c) => {
                   type: 'linear',
                   display: false,
                   min: 0,
-                  max: ${N}
+                  max: 200
                 },
                 y: {
                   display: false,
