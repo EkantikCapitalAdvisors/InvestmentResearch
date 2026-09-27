@@ -67,3 +67,85 @@ Parked in SPY, $220 — and on the mega-caps the LEAPS book actually wins by $37
 contract costs 4.6x (NVDA, CRWD) to 30x (META) the position's entire risk
 budget. Same-dollar-risk LEAPS sizing needs roughly $500k–1M of equity before
 the granularity stops dominating.
+
+---
+
+# SPY option equivalent to a 100% long-market position
+
+Run: `python3 analysis/spy_option_equivalent.py` (needs the cached chain JSON in
+`analysis/.cache`, or re-fetch — see the module docstring).
+
+## The question
+
+A 100% long-market position, with the move expected to complete inside one week.
+What is the equivalent SPY option on position size, time frame and delta?
+
+## Inputs (2026-09-25 close, live chain)
+
+SPY $771.35 · ATM IV 12.8% · VIX 14.87 · VIX9D 12.76. Volatility is cheap, which
+is the single most important fact for this trade.
+
+## Answer
+
+**SPY 2026-10-16 765 call, 2 contracts, ~$2,747.**
+
+| | |
+|---|---|
+| position delta | 125 share-equivalents vs 129.6 needed (−4%) |
+| premium | $2,747 — 2.7% of equity, against $100,000 for the stock |
+| max loss | $2,747, hard floor |
+| theta | $58/day, $288 over the 5-day window |
+| tenor | 21 DTE against a 5-day thesis — 4.2x buffer |
+| breakeven | +0.04% SPY |
+| at +2% SPY in 5 days | +$2,258, or 113% of the stock's +$2,000 |
+| quote | 13.67 / 13.80, OI 7,191 |
+
+## How each axis was matched
+
+**Size — match delta, not dollars.** $100,000 of SPY is 129.6 shares, so the
+option position needs 129.6 share-equivalents of delta. At 0.63 delta that is
+2.07 contracts, which rounds to 2. Rounding is unavoidable and here costs 4%
+of the intended exposure.
+
+**Time frame — buy 3-4x the thesis window, not the window itself.** A 1-week
+expiry on a 1-week thesis has no margin for the move arriving late. 21 DTE costs
+$288 of theta over the week and leaves the position alive if the move slips.
+The scenario grid prices that slippage directly: a +2% move pays $2,355 on day 3,
+$2,258 on day 5, $2,111 on day 8, still $1,608 at expiry.
+
+**Delta — 0.60-0.70 is the band.** Below 0.55 the position under-delivers on the
+move (770C tracks at 102%, 775C at 89%). Above 0.77 the premium jumps without
+improving tracking, and quoted IV on those strikes is unreliable.
+
+## Why deep in-the-money was rejected
+
+Yahoo's quoted IV on deep ITM calls comes back at 20-30% against a 12.8% ATM.
+Those strikes barely trade, so the mid is not a real price. Strike selection is
+therefore filtered on open interest (>=3,000) and quoted spread (<=2%) first,
+with delta read off what survives.
+
+## The asymmetry
+
+| if the thesis is wrong | option | stock | option better by |
+|---|---|---|---|
+| flat for a week | −$44 | $0 | −$44 |
+| down 2% | −$1,598 | −$2,000 | $402 |
+| down 5% | −$2,572 | −$5,000 | $2,428 |
+| down 10% | −$2,746 | −$10,000 | $7,254 |
+
+Being flat for a week costs $44. That is the whole price of the optionality.
+
+## Note on the heat cap
+
+$2,747 of premium is 2.7% of equity, inside the 6% options risk cap. A 100%
+notional market long expressed as stock cannot fit the cap at all; expressed
+this way it uses under half of it. Leaning on the full 6% cap would be ~4
+contracts, which is ~193% market exposure — a different trade, sized
+deliberately rather than by accident.
+
+## Contract choice
+
+SPY, not SPX. At $100k notional SPX would be 0.13 contracts — unusable
+granularity. SPX's 60/40 tax treatment and cash settlement only start to matter
+several hundred thousand dollars up; XSP (mini-SPX) is the middle option if the
+tax treatment is worth chasing.
