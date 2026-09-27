@@ -4,7 +4,7 @@
 // v7 quote API via crumb/cookie for rich data (market cap, P/E)
 // ============================================================
 
-const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+export const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
 
 // ── Crumb / Cookie Management ────────────────────────────────
 // Yahoo v7 quote requires a crumb + A3 cookie. Cached per-request lifetime.
@@ -12,7 +12,7 @@ let _cachedCrumb: string | null = null
 let _cachedCookie: string | null = null
 let _crumbExpiry = 0
 
-async function getYahooCrumb(): Promise<{ crumb: string; cookie: string } | null> {
+export async function getYahooCrumb(): Promise<{ crumb: string; cookie: string } | null> {
   // Cache for 25 minutes (crumbs last ~30 min)
   if (_cachedCrumb && _cachedCookie && Date.now() < _crumbExpiry) {
     return { crumb: _cachedCrumb, cookie: _cachedCookie }

@@ -6,6 +6,7 @@ import { tickerDetailRoutes } from './ticker-detail'
 import { mag7Routes } from './mag7'
 import { aomgRoutes } from './aomg'
 import { heatRoutes } from './heat'
+import { sizingRoutes } from './sizing'
 import { observationsRoutes } from './observations'
 import { journalRoutes } from './journal'
 import { settingsRoutes } from './settings'
@@ -24,6 +25,7 @@ adminPageRoutes.route('/', tickerDetailRoutes)
 adminPageRoutes.route('/', mag7Routes)
 adminPageRoutes.route('/', aomgRoutes)
 adminPageRoutes.route('/', heatRoutes)
+adminPageRoutes.route('/', sizingRoutes)
 adminPageRoutes.route('/', observationsRoutes)
 adminPageRoutes.route('/', journalRoutes)
 adminPageRoutes.route('/', settingsRoutes)

@@ -8,6 +8,7 @@ import { portfolioApi } from './portfolio'
 import { observationsApi } from './observations'
 import { journalApi } from './journal'
 import { marketApi } from './market'
+import { optionsApi } from './options'
 import { slackApi } from './slack-api'
 import { systemApi } from './system'
 import { subscriberAuthApi } from './subscriber-auth'
@@ -36,6 +37,7 @@ apiRoutes.route('/portfolio', portfolioApi)
 apiRoutes.route('/observations', observationsApi)
 apiRoutes.route('/journal', journalApi)
 apiRoutes.route('/market', marketApi)
+apiRoutes.route('/options', optionsApi)
 apiRoutes.route('/slack', slackApi)
 
 // Subscriber auth routes

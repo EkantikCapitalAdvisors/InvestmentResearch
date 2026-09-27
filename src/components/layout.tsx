@@ -7,6 +7,7 @@ const navItems = [
   { path: '/mag7', icon: 'fas fa-crown', label: 'Magnificent 7', id: 'mag7' },
   { path: '/aomg', icon: 'fas fa-bullseye', label: 'AOMG Tracker', id: 'aomg' },
   { path: '/heat', icon: 'fas fa-fire', label: 'Portfolio Heat', id: 'heat' },
+  { path: '/sizing', icon: 'fas fa-calculator', label: 'Option Sizing', id: 'sizing' },
   { path: '/observations', icon: 'fas fa-microscope', label: 'Observations', id: 'observations' },
   { path: '/journal', icon: 'fas fa-book', label: 'Trade Journal', id: 'journal' },
 ]
